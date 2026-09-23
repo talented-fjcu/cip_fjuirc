@@ -3,7 +3,6 @@
 本專案為大會與研習專用之報到與統計查詢系統，前端由 GitHub Pages 託管，後端串接 Google 試算表 (Google Apps Script)。
 
 - **線上系統網址**：[https://talented-fjcu.github.io/cip_fjuirc/](https://talented-fjcu.github.io/cip_fjuirc/)
-- **後端試算表**：[前往 Google 試算表](https://docs.google.com/spreadsheets/d/1rrF5RzCDhMxfEnKyyq5-DU319b4umjr34EK8Y7FQjfk/edit)
 
 ---
 
@@ -37,19 +36,3 @@
 | **F 欄** | **報到時間** | 系統掃描成功後自動寫入時間戳記 (`yyyy-MM-dd HH:mm:ss`) |
 | **G 欄** | **交通費核銷否** | 交通費是否核銷 (`是` / `否`) |
 
-> 註：本專案依大會需求，**不包含簽退**與**臨時報到**功能。
-
----
-
-## ⚙️ Google Apps Script (GAS) 部署指南
-
-1. 開啟 [目標 Google 試算表](https://docs.google.com/spreadsheets/d/1rrF5RzCDhMxfEnKyyq5-DU319b4umjr34EK8Y7FQjfk/edit)。
-2. 點擊頂部選單的 **「擴充功能」 -> 「Apps Script」**。
-3. 將專案中的 [`Code.gs`](./Code.gs) 程式碼完整複製並覆蓋貼上。
-4. 點擊右上角 **「部署」 -> 「新建部署」**：
-   - 種類選擇：**網頁應用程式 (Web App)**
-   - 說明：`v1.0.0 7欄位正式版`
-   - 執行身分：**我 (您的 Google 帳號)**
-   - 誰可以存取：**所有人 (Anyone)** *(⚠️ 務必設為所有人，前端才可免登入連線)*
-5. 點擊 **「部署」** 並授予權限，複製取得的 **網頁應用程式網址 (Web App URL)**。
-6. 打開前端頁面 (`index.html` 或 `query.html`)，點擊頂部橫幅的 `[點此設定 API 網址]` 貼上即可永久連線！
