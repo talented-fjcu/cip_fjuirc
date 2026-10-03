@@ -345,11 +345,6 @@
         <option value="not">未報到</option>
       </select>
       
-      <!-- 組別篩選 -->
-      <select id="fGroup" onchange="draw()" style="flex: 1; min-width: 130px; padding: 12px; font-size: 15px;">
-        <option value="all">所有組別</option>
-      </select>
-
       <!-- 獎勵項目篩選 -->
       <select id="fReward" onchange="draw()" style="flex: 1; min-width: 130px; padding: 12px; font-size: 15px;">
         <option value="all">所有獎勵項目</option>
@@ -472,22 +467,14 @@
     }
 
     function initFilters() {
-      const groupSet = new Set();
       const rewardSet = new Set();
 
-      // 索引 1: 組別, 索引 4: 獎勵項目
+      // 索引 4: 獎勵項目
       db.forEach(r => {
-        if (r[1] && String(r[1]).trim() !== "") groupSet.add(String(r[1]).trim());
         if (r[4] && String(r[4]).trim() !== "") rewardSet.add(String(r[4]).trim());
       });
 
-      const fGroup = document.getElementById('fGroup');
       const fReward = document.getElementById('fReward');
-
-      fGroup.innerHTML = '<option value="all">所有組別</option>';
-      Array.from(groupSet).sort().forEach(g => {
-        fGroup.innerHTML += `<option value="${g}">${g}</option>`;
-      });
 
       fReward.innerHTML = '<option value="all">所有獎勵項目</option>';
       Array.from(rewardSet).sort().forEach(rw => {
@@ -498,7 +485,6 @@
     function draw() {
       const keyword = document.getElementById('searchKeyword').value.trim().toUpperCase();
       const sStatus = document.getElementById('fStatus').value;
-      const sGroup = document.getElementById('fGroup').value;
       const sReward = document.getElementById('fReward').value;
       const tb = document.getElementById('tb');
       const cardsContainer = document.getElementById('cardsContainer');
@@ -546,13 +532,10 @@
         if (sStatus === "in") matchStatus = isCheckedIn;
         if (sStatus === "not") matchStatus = !isCheckedIn;
 
-        // 組別過濾
-        const matchGroup = (sGroup === "all") || (groupName === sGroup);
-
         // 獎勵項目過濾
         const matchReward = (sReward === "all") || (reward === sReward);
 
-        if (matchKeyword && matchStatus && matchGroup && matchReward) {
+        if (matchKeyword && matchStatus && matchReward) {
           countFiltered++;
 
           const timeOnly = checkInTime ? (checkInTime.split(' ')[1] || checkInTime) : '';
