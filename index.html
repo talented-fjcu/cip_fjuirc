@@ -257,6 +257,7 @@
         <div class="hint-title">📱 工作人員掃描須知</div>
         <div class="hint-msg">「請大家點開這個連結，允許相機權限，就可以開始掃描參加者的身分證囉！」</div>
         <div class="hint-sub">💡 若使用 LINE 開啟遇到相機無法啟用，請點右上方「<strong>…</strong>」選擇「<strong>以預設瀏覽器開啟</strong>」(Safari / Chrome)</div>
+        <div class="hint-sub" style="margin-top:4px; color:#b71c1c;">📏 <strong>iPhone 掃描技巧</strong>：請保持 <strong>15～20 公分</strong> 距離（勿貼太近）讓鏡頭清楚對焦，並微傾避開反光。</div>
       </div>
 
       <!-- 掃描與輸入主操作區 -->
@@ -270,8 +271,8 @@
         <!-- 相機視訊視窗 -->
         <div id="cameraWrapper" style="display: none;">
           <div id="reader"></div>
-          <div style="font-size: 13px; color: #fff; background: rgba(0,0,0,0.6); padding: 6px; position: absolute; bottom: 0; left: 0; right: 0;">
-            請對準身分證背面條碼 (Code 39) 或 QR Code
+          <div style="font-size: 13px; color: #fff; background: rgba(0,0,0,0.65); padding: 8px 6px; position: absolute; bottom: 0; left: 0; right: 0; line-height: 1.4;">
+            請將條碼水平置中・保持約 15～20 公分距離對焦
           </div>
         </div>
 
@@ -363,17 +364,35 @@
           Html5QrcodeSupportedFormats.CODE_128,
           Html5QrcodeSupportedFormats.QR_CODE
         ];
-        html5QrCode = new Html5Qrcode("reader", { formatsToSupport: formats, verbose: false });
+        html5QrCode = new Html5Qrcode("reader", { 
+          formatsToSupport: formats, 
+          verbose: false,
+          experimentalFeatures: {
+            useBarCodeDetectorIfSupported: true // 啟用 Apple iOS 17+ 原生硬體加速 BarcodeDetector
+          }
+        });
       }
 
+      // 視訊鏡頭規格優化 (針對 iPhone 12/13 等大感光元件機型請求 1080P 清晰畫質)
+      const cameraConfig = {
+        facingMode: "environment",
+        width: { ideal: 1920 },
+        height: { ideal: 1080 }
+      };
+
       const config = {
-        fps: 15,
-        qrbox: { width: 280, height: 160 },
+        fps: 20,
+        // 身分證 Code 39 條碼較長，採用自適應長矩形視野，避免左右邊界裁切
+        qrbox: function(viewfinderWidth, viewfinderHeight) {
+          const width = Math.min(Math.floor(viewfinderWidth * 0.9), 420);
+          const height = Math.min(Math.floor(viewfinderHeight * 0.45), 200);
+          return { width: Math.max(width, 280), height: Math.max(height, 120) };
+        },
         aspectRatio: 1.333333
       };
 
       await html5QrCode.start(
-        { facingMode: "environment" },
+        cameraConfig,
         config,
         onScanSuccess,
         onScanFailure
