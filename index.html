@@ -42,32 +42,6 @@
       z-index: -1;
     }
 
-    #apiSettingBanner {
-      background: rgba(204, 17, 17, 0.95);
-      color: #fff;
-      padding: 8px 16px;
-      font-size: 13px;
-      text-align: center;
-      box-shadow: 0 2px 8px rgba(0,0,0,0.15);
-      position: sticky;
-      top: 0;
-      z-index: 10000;
-      width: 100%;
-    }
-    #apiSettingBanner button {
-      color: #ffe082;
-      font-weight: bold;
-      text-decoration: underline;
-      background: none;
-      border: none;
-      cursor: pointer;
-      font-size: 13px;
-      width: auto;
-      padding: 0;
-      margin: 0;
-      box-shadow: none;
-      letter-spacing: normal;
-    }
     
     /* 導覽列：報到與看板 */
     .nav-bar { 
@@ -268,11 +242,6 @@
 </head>
 <body>
 
-  <!-- API 連線設定頂部條 -->
-  <div id="apiSettingBanner">
-    🔗 系統連線狀態：<span id="apiStatusText">尚未設定 GAS API 網址（目前為展示模擬模式）</span>
-    <button onclick="promptApiUrl()">[點此設定 API 網址]</button>
-  </div>
 
   <div class="nav-bar">
     <a href="index.html" class="nav-btn active">報到頁面</a>
@@ -351,21 +320,9 @@
       if (input !== null) {
         API_URL = input.trim();
         localStorage.setItem("CIP_GAS_URL", API_URL);
-        updateApiStatus();
+        alert("API 網址已更新！");
       }
     }
-
-    function updateApiStatus() {
-      const statusText = document.getElementById("apiStatusText");
-      if (API_URL && API_URL.startsWith("http")) {
-        statusText.textContent = "已連線正式 API (Google 試算表)";
-        statusText.style.color = "#a7f3d0";
-      } else {
-        statusText.textContent = "尚未設定 GAS API 網址（目前為展示模擬模式）";
-        statusText.style.color = "#ffe082";
-      }
-    }
-    updateApiStatus();
 
     // =========================================================================
     // 相機掃描條碼 (Code 39 / QR Code) 模組

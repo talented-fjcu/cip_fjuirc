@@ -163,6 +163,151 @@
       font-weight: bold;
       font-size: 12px;
     }
+
+    /* 檢視模式切換器 */
+    .view-mode-group {
+      display: inline-flex;
+      background: rgba(225, 225, 225, 0.7);
+      border-radius: 12px;
+      padding: 4px;
+      gap: 4px;
+    }
+    .view-btn {
+      padding: 8px 16px;
+      border: none;
+      border-radius: 9px;
+      background: transparent;
+      color: #555555;
+      font-size: 14px;
+      font-weight: bold;
+      cursor: pointer;
+      transition: all 0.2s ease;
+      box-shadow: none;
+      margin: 0;
+      width: auto;
+    }
+    .view-btn:hover {
+      color: #111111;
+    }
+    .view-btn.active {
+      background: #ffffff;
+      color: #cc1111;
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.12);
+    }
+
+    /* 卡片檢視容器與項目樣式 */
+    .cards-container {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+      gap: 16px;
+      margin-top: 15px;
+      text-align: left;
+    }
+    .person-card {
+      background: #ffffff;
+      border-radius: 20px;
+      padding: 18px;
+      border: 1px solid #ebebeb;
+      box-shadow: 0 4px 14px rgba(0, 0, 0, 0.04);
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      transition: transform 0.15s ease, box-shadow 0.15s ease;
+      border-left: 6px solid #d32f2f; /* 未報到預設紅邊 */
+    }
+    .person-card.checked-in {
+      border-left: 6px solid #2e7d32; /* 已報到綠邊 */
+      background: #fcfffc;
+    }
+    .person-card:hover {
+      box-shadow: 0 6px 18px rgba(0, 0, 0, 0.08);
+      transform: translateY(-2px);
+    }
+    .card-top {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 8px;
+    }
+    .card-badge-id {
+      background: #e8f0fe;
+      color: #1a73e8;
+      font-weight: 800;
+      padding: 3px 10px;
+      border-radius: 8px;
+      font-size: 13px;
+    }
+    .card-badge-group {
+      background: #fce8e6;
+      color: #c5221f;
+      font-weight: 700;
+      padding: 3px 10px;
+      border-radius: 8px;
+      font-size: 13px;
+    }
+    .card-name-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+    .card-name {
+      font-size: 24px;
+      font-weight: 800;
+      color: #1b1b1b;
+      letter-spacing: 0.5px;
+    }
+    .card-reward {
+      font-size: 14px;
+      color: #374151;
+      background: #f8fafc;
+      padding: 10px 12px;
+      border-radius: 12px;
+      border: 1px solid #edf2f7;
+      line-height: 1.4;
+    }
+    .card-reward-label {
+      font-weight: 700;
+      color: #94a3b8;
+      font-size: 11px;
+      margin-bottom: 4px;
+      letter-spacing: 0.5px;
+    }
+    .card-bottom {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding-top: 8px;
+      border-top: 1px dashed #e5e7eb;
+      font-size: 13px;
+    }
+
+    /* 手機螢幕優化 */
+    @media (max-width: 650px) {
+      .card {
+        padding: 22px 14px;
+        border-radius: 24px;
+        margin: 15px 0 40px 0;
+      }
+      h2 {
+        font-size: 24px;
+      }
+      .nav-bar {
+        margin-top: 18px;
+      }
+      .nav-btn {
+        font-size: 18px;
+        padding: 14px 10px;
+        border-radius: 16px;
+      }
+      .cards-container {
+        grid-template-columns: 1fr;
+        gap: 12px;
+      }
+      .view-btn {
+        padding: 6px 12px;
+        font-size: 13px;
+      }
+    }
   </style>
 </head>
 <body>
@@ -219,18 +364,29 @@
       </select>
     </div>
 
-    <!-- 名冊表格 (純粹 7 欄位) -->
-    <div class="table-container">
+    <!-- 檢視模式切換列 -->
+    <div style="display:flex; justify-content:space-between; align-items:center; margin: 18px 0 8px 0; flex-wrap: wrap; gap: 10px;">
+      <div style="font-size: 14px; color: #555; font-weight: bold;">
+        名單檢視方式：
+      </div>
+      <div class="view-mode-group">
+        <button type="button" id="btnViewTable" class="view-btn" onclick="setViewMode('table')">📋 表格檢視</button>
+        <button type="button" id="btnViewCard" class="view-btn" onclick="setViewMode('card')">🗂️ 卡片檢視</button>
+      </div>
+    </div>
+
+    <!-- 卡片檢視區塊 (手機友善) -->
+    <div id="cardsContainer" class="cards-container"></div>
+
+    <!-- 表格檢視區塊 (移除身分證字號，版面更清爽) -->
+    <div class="table-container" id="tableContainer">
       <table>
         <thead>
           <tr>
-            <th style="width: 10%; text-align: center;">編號</th>
-            <th style="width: 12%; text-align: center;">組別</th>
-            <th style="width: 16%;">身分證字號</th>
-            <th style="width: 16%;">姓名</th>
-            <th style="width: 22%;">獎勵項目</th>
-            <th style="width: 12%; text-align: center;">交通費</th>
-            <th style="width: 12%; text-align: center;">報到狀態</th>
+            <th style="width: 15%; text-align: center;">編號</th>
+            <th style="width: 25%;">姓名</th>
+            <th style="width: 40%;">獎勵項目</th>
+            <th style="width: 20%; text-align: center;">報到狀態</th>
           </tr>
         </thead>
         <tbody id="tb"></tbody>
@@ -243,17 +399,37 @@
     const DEFAULT_GAS_URL = "https://script.google.com/macros/s/AKfycbwQnQrRL0rWlM50-KTjrx2iC8xtYTvoL9e-NL56EiDE7dU_SsgnGT-45eoY3apswwE1xA/exec";
     let API_URL = localStorage.getItem("CIP_GAS_URL") || DEFAULT_GAS_URL;
 
+    // 檢視模式：優先讀取使用者記憶，手機預設為卡片 (card)，電腦預設為表格 (table)
+    let currentViewMode = localStorage.getItem("CIP_VIEW_MODE") || (window.innerWidth <= 768 ? "card" : "table");
+
     window.onload = function() {
+      updateViewModeUI();
       fetchAdminData();
     };
 
-    function maskId(idStr) {
-      if (!idStr) return "-";
-      let clean = idStr.toString().trim();
-      if (clean.length >= 5) {
-        return clean.substring(0, 5) + "*****";
+    function setViewMode(mode) {
+      currentViewMode = mode;
+      localStorage.setItem("CIP_VIEW_MODE", mode);
+      updateViewModeUI();
+    }
+
+    function updateViewModeUI() {
+      const tableContainer = document.getElementById('tableContainer');
+      const cardsContainer = document.getElementById('cardsContainer');
+      const btnTable = document.getElementById('btnViewTable');
+      const btnCard = document.getElementById('btnViewCard');
+
+      if (currentViewMode === 'card') {
+        if (tableContainer) tableContainer.style.display = 'none';
+        if (cardsContainer) cardsContainer.style.display = 'grid';
+        if (btnTable) btnTable.classList.remove('active');
+        if (btnCard) btnCard.classList.add('active');
+      } else {
+        if (tableContainer) tableContainer.style.display = 'block';
+        if (cardsContainer) cardsContainer.style.display = 'none';
+        if (btnTable) btnTable.classList.add('active');
+        if (btnCard) btnCard.classList.remove('active');
       }
-      return clean;
     }
 
     async function fetchAdminData() {
@@ -334,19 +510,24 @@
       const sTravel = document.getElementById('fTravel').value;
       const sReward = document.getElementById('fReward').value;
       const tb = document.getElementById('tb');
+      const cardsContainer = document.getElementById('cardsContainer');
 
       tb.innerHTML = "";
+      cardsContainer.innerHTML = "";
 
       let countIn = 0;
       let countNot = 0;
       let countTravel = 0;
       let countFiltered = 0;
 
+      let tableHtml = "";
+      let cardsHtml = "";
+
       db.forEach(r => {
         // 7 欄位結構對應：
         // r[0]: 編號
         // r[1]: 組別
-        // r[2]: 身分證字號
+        // r[2]: 身分證字號 (僅供後台比對及關鍵字搜尋，不再直接列出)
         // r[3]: 姓名
         // r[4]: 獎勵項目
         // r[5]: 報到時間
@@ -365,7 +546,7 @@
 
         if (travelPay === "是") countTravel++;
 
-        // 搜尋過濾
+        // 搜尋過濾 (仍支援用身分證號搜尋，但結果不顯示)
         const matchKeyword = (keyword === "") ||
           String(idNo).toUpperCase().includes(keyword) ||
           String(rawId).toUpperCase().includes(keyword) ||
@@ -390,33 +571,64 @@
         if (matchKeyword && matchStatus && matchGroup && matchTravel && matchReward) {
           countFiltered++;
 
-          let statusBadge = isCheckedIn 
-            ? `<span class="badge-status-yes">✅ 已報到<br><small style="font-size:11px; color:#555;">${checkInTime.split(' ')[1] || checkInTime}</small></span>` 
+          const timeOnly = checkInTime ? (checkInTime.split(' ')[1] || checkInTime) : '';
+
+          let tableStatusBadge = isCheckedIn 
+            ? `<span class="badge-status-yes">✅ 已報到<br><small style="font-size:11px; color:#555;">${timeOnly}</small></span>` 
             : `<span class="badge-status-no">未報到</span>`;
+
+          let cardStatusBadge = isCheckedIn
+            ? `<span class="badge-status-yes" style="font-size:12px; padding:3px 10px;">✅ 已報到 <small style="color:#555;">${timeOnly}</small></span>`
+            : `<span class="badge-status-no" style="font-size:12px; padding:3px 10px;">未報到</span>`;
 
           let travelBadge = (travelPay === "是")
             ? `<span class="badge-travel">可核銷</span>`
             : `<span style="color:#999; font-size:13px;">無</span>`;
 
-          tb.innerHTML += `
+          // 1. 表格列 HTML (簡潔 4 欄：編號、姓名、獎勵項目、報到狀態)
+          tableHtml += `
             <tr style="background:${isCheckedIn ? 'rgba(230, 244, 234, 0.3)' : 'none'};">
               <td style="text-align:center; font-weight:bold; color:#1a73e8;">${idNo}</td>
-              <td style="text-align:center; font-weight:bold; color:#cc1111;">${groupName}</td>
-              <td>${maskId(rawId)}</td>
               <td><b>${name}</b></td>
               <td>${reward}</td>
-              <td style="text-align:center;">${travelBadge}</td>
-              <td style="text-align:center;">${statusBadge}</td>
+              <td style="text-align:center;">${tableStatusBadge}</td>
             </tr>
+          `;
+
+          // 2. 卡片 HTML (適合手機瀏覽，清爽且資訊聚焦)
+          cardsHtml += `
+            <div class="person-card ${isCheckedIn ? 'checked-in' : ''}">
+              <div class="card-top">
+                <span class="card-badge-id">#${idNo}</span>
+                ${cardStatusBadge}
+              </div>
+              <div class="card-name-row">
+                <div class="card-name">${name}</div>
+              </div>
+              <div class="card-reward">
+                <div class="card-reward-label">獎勵項目</div>
+                <div style="font-weight:600; color:#222;">${reward}</div>
+              </div>
+            </div>
           `;
         }
       });
+
+      if (countFiltered === 0) {
+        tb.innerHTML = `<tr><td colspan="4" style="text-align:center; padding: 30px; color:#888;">查無符合條件的學員資料</td></tr>`;
+        cardsContainer.innerHTML = `<div style="grid-column: 1 / -1; text-align:center; padding: 40px 20px; color:#888; font-size:15px; background:rgba(255,255,255,0.7); border-radius:16px;">查無符合條件的學員資料</div>`;
+      } else {
+        tb.innerHTML = tableHtml;
+        cardsContainer.innerHTML = cardsHtml;
+      }
 
       document.getElementById('cTotal').innerText = db.length;
       document.getElementById('cIn').innerText = countIn;
       document.getElementById('cNot').innerText = countNot;
       document.getElementById('cTravel').innerText = countTravel;
       document.getElementById('fTotal').innerText = countFiltered;
+
+      updateViewModeUI();
     }
   </script>
 </body>
