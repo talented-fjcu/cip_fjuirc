@@ -38,21 +38,18 @@ function doPost(e) {
 }
 
 /**
- * 處理 GET 請求 (提供測試或備用取得資料)
+ * 處理 GET 請求 (僅提供基本狀態檢查，不對外開放名冊讀取與簽到)
  */
 function doGet(e) {
   try {
-    const action = e.parameter.action;
-    if (action === "getAdminData") {
-      return jsonResponse(getAdminData());
-    } else if (action === "processScan") {
-      return jsonResponse(processScan(e.parameter.idNumber));
+    const action = e.parameter ? e.parameter.action : "";
+    if (action === "getAdminData" || action === "processScan") {
+      return jsonResponse({ success: false, error: "安全性限制：此動作僅支援 POST 請求" });
     }
 
     return jsonResponse({
       status: "online",
-      message: "原資增能獎勵報到系統 GAS API 正常運行中",
-      spreadsheetId: SPREADSHEET_ID
+      message: "原資增能獎勵報到系統 GAS API 正常運行中"
     });
   } catch (err) {
     return jsonResponse({ success: false, error: err.toString() });
@@ -160,7 +157,7 @@ function getAdminData() {
       dataList.push([
         r[0] ? r[0].toString() : "",               // 0: 編號
         r[1] ? r[1].toString() : "",               // 1: 組別
-        r[2] ? r[2].toString().toUpperCase() : "", // 2: 身分證字號
+        "",                                        // 2: 身分證字號 (資安與個資保護：不對外傳輸敏感識別碼)
         r[3] ? r[3].toString() : "",               // 3: 姓名
         r[4] ? r[4].toString() : "",               // 4: 獎勵項目
         checkInTimeStr,                            // 5: 報到時間

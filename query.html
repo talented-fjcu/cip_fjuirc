@@ -336,7 +336,7 @@
     
     <!-- 篩選列 -->
     <div style="display:flex; gap:10px; justify-content:center; margin-bottom:15px; flex-wrap: wrap; align-items: center;">
-      <input type="text" id="searchKeyword" oninput="draw()" placeholder="🔍 搜尋姓名、身分證、編號或獎勵項目..." style="max-width: 100%; width: 100%; padding: 14px; font-size: 16px; text-align: left;">
+      <input type="text" id="searchKeyword" oninput="draw()" placeholder="🔍 搜尋姓名、編號或獎勵項目..." style="max-width: 100%; width: 100%; padding: 14px; font-size: 16px; text-align: left;">
       
       <!-- 狀態篩選 -->
       <select id="fStatus" onchange="draw()" style="flex: 1; min-width: 130px; padding: 12px; font-size: 15px;">
@@ -456,10 +456,10 @@
         d.style.background = "#e8f0fe"; 
         d.style.color = "#1967d2";
         db = [
-          ["001", "第一組", "A123456789", "陳大文", "語文競賽特優", "2026-08-20 08:45:12", "是"],
-          ["002", "第二組", "B234567890", "李曉明", "原民專門人才卓越獎", "", "否"],
-          ["003", "第一組", "C123987654", "張小美", "學術專利深造獎勵", "2026-08-20 09:12:00", "是"],
-          ["004", "第三組", "D223344556", "王志明", "專題研究計畫甲等", "", "是"]
+          ["001", "第一組", "", "陳大文", "語文競賽特優", "2026-08-20 08:45:12", "是"],
+          ["002", "第二組", "", "李曉明", "原民專門人才卓越獎", "", "否"],
+          ["003", "第一組", "", "張小美", "學術專利深造獎勵", "2026-08-20 09:12:00", "是"],
+          ["004", "第三組", "", "王志明", "專題研究計畫甲等", "", "是"]
         ];
         initFilters();
         draw();
@@ -503,14 +503,13 @@
         // 7 欄位結構對應：
         // r[0]: 編號
         // r[1]: 組別
-        // r[2]: 身分證字號 (僅供後台比對及關鍵字搜尋，不再直接列出)
+        // r[2]: 身分證字號 (資安保護：前端不接收身分證字號)
         // r[3]: 姓名
         // r[4]: 獎勵項目
         // r[5]: 報到時間
         // r[6]: 交通費核銷否
         const idNo = r[0] || '-';
         const groupName = r[1] || '-';
-        const rawId = r[2] || '';
         const name = r[3] || '-';
         const reward = r[4] || '-';
         const checkInTime = r[5] ? String(r[5]).trim() : '';
@@ -519,10 +518,9 @@
         if (isCheckedIn) countIn++;
         else countNot++;
 
-        // 搜尋過濾 (仍支援用身分證號搜尋，但結果不顯示)
+        // 搜尋過濾 (姓名、編號、獎勵項目、組別)
         const matchKeyword = (keyword === "") ||
           String(idNo).toUpperCase().includes(keyword) ||
-          String(rawId).toUpperCase().includes(keyword) ||
           String(name).toUpperCase().includes(keyword) ||
           String(reward).toUpperCase().includes(keyword) ||
           String(groupName).toUpperCase().includes(keyword);
