@@ -350,13 +350,6 @@
       <select id="fGroup" onchange="draw()" style="flex: 1; min-width: 130px; padding: 12px; font-size: 15px;">
         <option value="all">所有組別</option>
       </select>
-      
-      <!-- 交通費核銷篩選 -->
-      <select id="fTravel" onchange="draw()" style="flex: 1; min-width: 130px; padding: 12px; font-size: 15px;">
-        <option value="all">交通費核銷 (全部)</option>
-        <option value="是">可核銷 (是)</option>
-        <option value="否">不核銷 (否)</option>
-      </select>
 
       <!-- 獎勵項目篩選 -->
       <select id="fReward" onchange="draw()" style="flex: 1; min-width: 130px; padding: 12px; font-size: 15px;">
@@ -507,7 +500,6 @@
       const keyword = document.getElementById('searchKeyword').value.trim().toUpperCase();
       const sStatus = document.getElementById('fStatus').value;
       const sGroup = document.getElementById('fGroup').value;
-      const sTravel = document.getElementById('fTravel').value;
       const sReward = document.getElementById('fReward').value;
       const tb = document.getElementById('tb');
       const cardsContainer = document.getElementById('cardsContainer');
@@ -562,13 +554,10 @@
         // 組別過濾
         const matchGroup = (sGroup === "all") || (groupName === sGroup);
 
-        // 交通費過濾
-        const matchTravel = (sTravel === "all") || (travelPay === sTravel);
-
         // 獎勵項目過濾
         const matchReward = (sReward === "all") || (reward === sReward);
 
-        if (matchKeyword && matchStatus && matchGroup && matchTravel && matchReward) {
+        if (matchKeyword && matchStatus && matchGroup && matchReward) {
           countFiltered++;
 
           const timeOnly = checkInTime ? (checkInTime.split(' ')[1] || checkInTime) : '';
@@ -580,10 +569,6 @@
           let cardStatusBadge = isCheckedIn
             ? `<span class="badge-status-yes" style="font-size:12px; padding:3px 10px;">✅ 已報到 <small style="color:#555;">${timeOnly}</small></span>`
             : `<span class="badge-status-no" style="font-size:12px; padding:3px 10px;">未報到</span>`;
-
-          let travelBadge = (travelPay === "是")
-            ? `<span class="badge-travel">可核銷</span>`
-            : `<span style="color:#999; font-size:13px;">無</span>`;
 
           // 1. 表格列 HTML (簡潔 4 欄：編號、姓名、獎勵項目、報到狀態)
           tableHtml += `
