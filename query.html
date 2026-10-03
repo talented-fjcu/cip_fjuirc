@@ -327,7 +327,6 @@
         <div>應到總人數：<span id="cTotal" style="font-size:26px; font-weight:bold; color:#222;">0</span> 人</div>
         <div>已報到：<span id="cIn" style="font-size:26px; font-weight:bold; color:#2e7d32;">0</span> 人</div>
         <div>未報到：<span id="cNot" style="font-size:26px; font-weight:bold; color:#d32f2f;">0</span> 人</div>
-        <div>交通費可核銷：<span id="cTravel" style="font-size:26px; font-weight:bold; color:#1a73e8;">0</span> 人</div>
       </div>
       <div style="text-align:center; margin-top:12px; border-top:1px solid #eee; padding-top:10px; color:#666; font-size: 14px;">
         目前篩選條件顯示：<span id="fTotal" style="font-weight:bold; color:#cc1111; font-size: 18px;">0</span> 人
@@ -509,7 +508,6 @@
 
       let countIn = 0;
       let countNot = 0;
-      let countTravel = 0;
       let countFiltered = 0;
 
       let tableHtml = "";
@@ -530,13 +528,10 @@
         const name = r[3] || '-';
         const reward = r[4] || '-';
         const checkInTime = r[5] ? String(r[5]).trim() : '';
-        const travelPay = r[6] ? String(r[6]).trim() : '否';
 
         const isCheckedIn = (checkInTime !== "");
         if (isCheckedIn) countIn++;
         else countNot++;
-
-        if (travelPay === "是") countTravel++;
 
         // 搜尋過濾 (仍支援用身分證號搜尋，但結果不顯示)
         const matchKeyword = (keyword === "") ||
@@ -610,7 +605,6 @@
       document.getElementById('cTotal').innerText = db.length;
       document.getElementById('cIn').innerText = countIn;
       document.getElementById('cNot').innerText = countNot;
-      document.getElementById('cTravel').innerText = countTravel;
       document.getElementById('fTotal').innerText = countFiltered;
 
       updateViewModeUI();
