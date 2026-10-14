@@ -469,15 +469,60 @@
       const fGroup = document.getElementById('fGroup');
       const fReward = document.getElementById('fReward');
 
-      fGroup.innerHTML = '<option value="all">所有組別</option>';
-      Array.from(groupSet).sort().forEach(g => {
-        fGroup.innerHTML += `<option value="${g}">${g}</option>`;
+      const prevGroup = fGroup.value;
+      const prevReward = fReward.value;
+
+      // 中文數字解析器，支援「第一階」、「第二階」至「第N階/組」按數字順序排序
+      const cnMap = { '零': 0, '一': 1, '二': 2, '兩': 2, '三': 3, '四': 4, '五': 5, '六': 6, '七': 7, '八': 8, '九': 9 };
+      function getChineseNumValue(str) {
+        if (!str) return 999;
+        if (/^\d+$/.test(str)) return parseInt(str, 10);
+        let total = 0, temp = 0;
+        for (let i = 0; i < str.length; i++) {
+          const ch = str[i];
+          if (cnMap[ch] !== undefined) {
+            temp = cnMap[ch];
+          } else if (ch === '十') {
+            if (temp === 0) temp = 1;
+            total += temp * 10;
+            temp = 0;
+          }
+        }
+        total += temp;
+        return total > 0 ? total : 999;
+      }
+
+      function getGroupOrder(str) {
+        if (!str) return 999;
+        const match = str.match(/第([一二兩三四五六七八九十\d]+)/);
+        if (match) return getChineseNumValue(match[1]);
+        const matchNoPrefix = str.match(/([一二兩三四五六七八九十\d]+)/);
+        if (matchNoPrefix) return getChineseNumValue(matchNoPrefix[1]);
+        return 999;
+      }
+
+      const sortedGroups = Array.from(groupSet).sort((a, b) => {
+        const orderA = getGroupOrder(a);
+        const orderB = getGroupOrder(b);
+        if (orderA !== orderB) return orderA - orderB;
+        return a.localeCompare(b, 'zh-Hant');
       });
 
+      fGroup.innerHTML = '<option value="all">所有組別</option>';
+      sortedGroups.forEach(g => {
+        fGroup.innerHTML += `<option value="${g}">${g}</option>`;
+      });
+      if (Array.from(fGroup.options).some(opt => opt.value === prevGroup)) {
+        fGroup.value = prevGroup;
+      }
+
       fReward.innerHTML = '<option value="all">所有獎勵項目</option>';
-      Array.from(rewardSet).sort().forEach(rw => {
+      Array.from(rewardSet).sort((a, b) => a.localeCompare(b, 'zh-Hant')).forEach(rw => {
         fReward.innerHTML += `<option value="${rw}">${rw}</option>`;
       });
+      if (Array.from(fReward.options).some(opt => opt.value === prevReward)) {
+        fReward.value = prevReward;
+      }
     }
 
     function draw() {
