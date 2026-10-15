@@ -77,11 +77,11 @@
 html[data-device-mode="desktop"] .container,
 html[data-device-mode="desktop"] .card {
   width: 96% !important;
-  max-width: 1180px !important;
+  max-width: 1380px !important;
 }
 
 html[data-device-mode="desktop"] .nav-bar {
-  max-width: 820px !important;
+  max-width: 1050px !important;
 }
 
 html[data-device-mode="desktop"] .nav-btn {
@@ -89,11 +89,24 @@ html[data-device-mode="desktop"] .nav-btn {
   padding: 14px 16px !important;
 }
 
+/* 階段卡片清單與卡片容器改為多欄並排網格，不再單一狹長縱列 */
+html[data-device-mode="desktop"] .stage-list {
+  display: grid !important;
+  grid-template-columns: repeat(auto-fill, minmax(360px, 1fr)) !important;
+  gap: 18px !important;
+}
+
+html[data-device-mode="desktop"] .cards-container {
+  display: grid !important;
+  grid-template-columns: repeat(auto-fill, minmax(350px, 1fr)) !important;
+  gap: 16px !important;
+}
+
 /* 電腦版表格佈局：6 欄依序為 組別 ｜ 編號 ｜ 姓名 ｜ 報到情況 ｜ 整隊 ｜ 檢錄 */
 html[data-device-mode="desktop"] .attendee-item,
 html[data-device-mode="desktop"] .view-row {
   display: grid !important;
-  grid-template-columns: 95px 95px 1.6fr 1.3fr 115px 115px !important;
+  grid-template-columns: 105px 110px 1.6fr 1.3fr 135px 135px !important;
   padding: 18px 24px !important;
   gap: 14px !important;
   align-items: center !important;
@@ -209,11 +222,11 @@ html[data-device-mode="desktop"] .lock-btn {
 html[data-device-mode="tablet"] .container,
 html[data-device-mode="tablet"] .card {
   width: 96% !important;
-  max-width: 980px !important;
+  max-width: 1120px !important;
 }
 
 html[data-device-mode="tablet"] .nav-bar {
-  max-width: 780px !important;
+  max-width: 900px !important;
 }
 
 html[data-device-mode="tablet"] .nav-btn {
@@ -221,10 +234,23 @@ html[data-device-mode="tablet"] .nav-btn {
   padding: 15px 16px !important;
 }
 
+/* 階段卡片清單與卡片容器在平板上採用雙欄網格 */
+html[data-device-mode="tablet"] .stage-list {
+  display: grid !important;
+  grid-template-columns: repeat(auto-fill, minmax(340px, 1fr)) !important;
+  gap: 16px !important;
+}
+
+html[data-device-mode="tablet"] .cards-container {
+  display: grid !important;
+  grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)) !important;
+  gap: 14px !important;
+}
+
 html[data-device-mode="tablet"] .attendee-item,
 html[data-device-mode="tablet"] .view-row {
   display: grid !important;
-  grid-template-columns: 95px 95px 1.5fr 1.3fr 130px 130px !important;
+  grid-template-columns: 100px 105px 1.5fr 1.3fr 130px 130px !important;
   padding: 20px 22px !important;
   gap: 12px !important;
   align-items: center !important;
