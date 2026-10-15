@@ -27,6 +27,8 @@ function doPost(e) {
 
     if (action === "processScan") {
       return jsonResponse(processScan(request.idNumber, request.lockedStages));
+    } else if (action === "processWalkIn") {
+      return jsonResponse(processWalkIn(request.idNumber));
     } else if (action === "getAdminData") {
       return jsonResponse(getAdminData());
     }
@@ -43,7 +45,7 @@ function doPost(e) {
 function doGet(e) {
   try {
     const action = e.parameter ? e.parameter.action : "";
-    if (action === "getAdminData" || action === "processScan") {
+    if (action === "getAdminData" || action === "processScan" || action === "processWalkIn") {
       return jsonResponse({ success: false, error: "安全性限制：此動作僅支援 POST 請求" });
     }
 
@@ -181,6 +183,142 @@ function getAdminData() {
     return { success: true, data: dataList };
   } catch (err) {
     return { success: false, error: err.toString() };
+  }
+}
+
+/**
+ * 處理臨時報到：比對總表並追加新增至工作表1
+ * @param {string} idNumber 身分證字號
+ */
+function processWalkIn(idNumber) {
+  if (!idNumber) {
+    return { status: "not_found", message: "身分證字號不可為空" };
+  }
+
+  const cleanId = idNumber.toString().trim().toUpperCase();
+  const lock = LockService.getScriptLock();
+  
+  // 等待最多 10 秒，避免多人同時調檔導致編號衝突
+  try {
+    lock.waitLock(10000);
+  } catch (e) {
+    return { status: "error", message: "系統忙碌中，請稍後再試" };
+  }
+
+  try {
+    const ss = SpreadsheetApp.openById(SPREADSHEET_ID);
+    
+    // 取得「工作表1」
+    const sheet1 = ss.getSheetByName("工作表1") || ss.getSheets()[0];
+    const data1 = sheet1.getDataRange().getValues();
+
+    // 1. 防重複檢查：檢查「工作表1」是否已存在該身分證 (第 3 欄 / Index 2)
+    for (let i = 1; i < data1.length; i++) {
+      const row = data1[i];
+      const targetId = row[2] ? row[2].toString().trim().toUpperCase() : "";
+      if (targetId === cleanId) {
+        return {
+          status: "already_exists",
+          message: "此身分證字號已在名冊中，請勿重複新增！",
+          idNo: row[0] ? row[0].toString() : "",
+          groupName: row[1] ? row[1].toString() : "",
+          name: row[3] ? row[3].toString() : "",
+          checkInTime: row[5] ? row[5].toString() : ""
+        };
+      }
+    }
+
+    // 2. 查「總表」：取得母檔資料
+    const masterSheet = ss.getSheetByName("總表");
+    if (!masterSheet) {
+      return { status: "error", message: "試算表中找不到名為『總表』的工作表分頁，請確認分頁名稱！" };
+    }
+    const masterData = masterSheet.getDataRange().getValues();
+
+    // 總表結構 (共 12 欄)：
+    // 0: 獎勵項目, 1: 項目, 2: 項目金額, 3: 獎勵事蹟, 4: 姓名, 5: 族名, 
+    // 6: 身分證字號, 7: 族別, 8: 族群方言, 9: 行動電話, 10: 學校及服務單位, 11: 科系職稱
+    let foundRecord = null;
+    for (let j = 1; j < masterData.length; j++) {
+      const mRow = masterData[j];
+      const mId = mRow[6] ? mRow[6].toString().trim().toUpperCase() : "";
+      if (mId === cleanId) {
+        foundRecord = {
+          reward: mRow[0] ? mRow[0].toString().trim() : "",
+          rewardAmount: mRow[2] ? mRow[2].toString().trim() : "",
+          rewardDesc: mRow[3] ? mRow[3].toString().trim() : "",
+          name: mRow[4] ? mRow[4].toString().trim() : "",
+          tribe: mRow[7] ? mRow[7].toString().trim() : ""
+        };
+        break;
+      }
+    }
+
+    // 若總表找不到該身分證
+    if (!foundRecord) {
+      return { status: "not_found", message: "總表無此人資料，請洽大會服務台！" };
+    }
+
+    // 3. 計算新編號 F-XX (尋找工作表1中最大的 F- 編號)
+    let maxFNum = 0;
+    for (let k = 1; k < data1.length; k++) {
+      const curIdNo = data1[k][0] ? data1[k][0].toString().trim() : "";
+      const match = curIdNo.match(/^F-(\d+)$/i);
+      if (match) {
+        const numVal = parseInt(match[1], 10);
+        if (numVal > maxFNum) maxFNum = numVal;
+      }
+    }
+    const nextFNum = maxFNum + 1;
+    const newIdNo = "F-" + (nextFNum < 100 ? String(nextFNum).padStart(2, "0") : String(nextFNum));
+
+    // 4. 產生報到時間並組裝 11 欄新資料
+    const nowStr = Utilities.formatDate(new Date(), "Asia/Taipei", "yyyy-MM-dd HH:mm:ss");
+
+    // 工作表1 欄位對應：
+    // A (0): 編號 (F-XX)
+    // B (1): 組別 ('第6階')
+    // C (2): 身分證字號
+    // D (3): 姓名
+    // E (4): 獎勵項目
+    // F (5): 報到時間 (填入當前時間，視為已完成報到)
+    // G (6): 整隊確認 (空白)
+    // H (7): 檢錄組確認 (空白)
+    // I (8): 族別
+    // J (9): 獎勵事蹟
+    // K (10): 獎勵金額
+    const newRow = [
+      newIdNo,
+      "第6階",
+      cleanId,
+      foundRecord.name,
+      foundRecord.reward,
+      nowStr,
+      "",
+      "",
+      foundRecord.tribe,
+      foundRecord.rewardDesc,
+      foundRecord.rewardAmount
+    ];
+
+    sheet1.appendRow(newRow);
+    SpreadsheetApp.flush();
+
+    return {
+      status: "success",
+      message: "臨時報到成功！已派發【第6階】號碼牌",
+      idNo: newIdNo,
+      groupName: "第6階",
+      name: foundRecord.name,
+      reward: foundRecord.reward,
+      tribe: foundRecord.tribe,
+      rewardAmount: foundRecord.rewardAmount,
+      checkInTime: nowStr
+    };
+  } catch (err) {
+    return { status: "error", message: err.toString() };
+  } finally {
+    lock.releaseLock();
   }
 }
 

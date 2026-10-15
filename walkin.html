@@ -1,0 +1,526 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no" />
+  <title>大會臨時報到專區</title>
+
+  <!-- 引入 Firebase SDK (相容模式 CDN) -->
+  <script src="https://www.gstatic.com/firebasejs/10.13.2/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.13.2/firebase-database-compat.js"></script>
+  <script src="firebase-config.js"></script>
+
+  <style>
+    * { 
+      box-sizing: border-box; 
+      -webkit-font-smoothing: antialiased; 
+    }
+    body, html { 
+      margin: 0; 
+      padding: 0; 
+      min-height: 100vh; 
+      font-family: "Microsoft JhengHei", "PingFang TC", sans-serif; 
+      display: flex; 
+      flex-direction: column; 
+      align-items: center; 
+      background-color: #f4f6f8;
+    }
+
+    .nav-bar { 
+      display: flex; 
+      gap: 10px; 
+      width: 95%; 
+      max-width: 650px; 
+      margin-top: 25px; 
+      flex-wrap: wrap;
+    }
+    .nav-btn { 
+      flex: 1; 
+      min-width: 120px;
+      padding: 14px 10px; 
+      background: rgba(240, 240, 240, 0.85); 
+      color: #444444; 
+      border: 2px solid #dddddd; 
+      border-radius: 18px; 
+      text-decoration: none; 
+      text-align: center; 
+      font-weight: bold; 
+      font-size: 16px; 
+      transition: all 0.2s ease;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.06);
+    }
+    .nav-btn:hover {
+      background: #e5e5e5;
+      color: #222222;
+    }
+    .nav-btn.active { 
+      background: #cc1111; 
+      color: #ffffff;      
+      border-color: #cc1111;
+      box-shadow: 0 6px 20px rgba(204, 17, 17, 0.35);
+    }
+
+    .card { 
+      background: #ffffff; 
+      padding: 35px 25px; 
+      border-radius: 30px; 
+      box-shadow: 0 15px 35px rgba(0,0,0,0.08); 
+      width: 95%; 
+      max-width: 620px; 
+      text-align: center; 
+      margin: 20px 0 60px 0;
+      border: 1px solid rgba(0, 0, 0, 0.06); 
+    }
+
+    h2 {
+      margin: 0 0 6px 0;
+      color: #1a1a1a;
+      font-size: 28px;
+    }
+    .sub-title {
+      color: #64748b;
+      font-size: 14px;
+      margin-bottom: 24px;
+      line-height: 1.5;
+    }
+
+    .hint-box {
+      background: #f0fdf4;
+      border: 1.5px dashed #86efac;
+      border-radius: 18px;
+      padding: 14px 16px;
+      margin-bottom: 22px;
+      font-size: 14px;
+      color: #166534;
+      line-height: 1.5;
+      text-align: left;
+    }
+
+    /* 輸入區塊 */
+    .input-group {
+      margin-bottom: 20px;
+    }
+    .id-input {
+      width: 100%;
+      padding: 18px 16px;
+      font-size: 24px;
+      text-align: center;
+      letter-spacing: 3px;
+      font-weight: bold;
+      border: 2px solid #cbd5e1;
+      border-radius: 20px;
+      outline: none;
+      transition: all 0.2s;
+      background: #f8fafc;
+      color: #0f172a;
+    }
+    .id-input:focus {
+      border-color: #2563eb;
+      background: #ffffff;
+      box-shadow: 0 0 0 4px rgba(37, 99, 235, 0.15);
+    }
+
+    .btn-submit {
+      width: 100%;
+      padding: 18px;
+      background: #1e3a8a;
+      color: #ffffff;
+      border: none;
+      border-radius: 20px;
+      font-size: 20px;
+      font-weight: bold;
+      cursor: pointer;
+      transition: all 0.2s;
+      box-shadow: 0 8px 20px rgba(30, 58, 138, 0.25);
+    }
+    .btn-submit:hover {
+      background: #172554;
+      transform: translateY(-2px);
+    }
+    .btn-submit:active {
+      transform: scale(0.98);
+    }
+    .btn-submit:disabled {
+      background: #94a3b8;
+      cursor: not-allowed;
+      transform: none;
+    }
+
+    /* 處理中動畫 */
+    .loading-box {
+      display: none;
+      margin: 25px 0;
+      color: #2563eb;
+      font-weight: bold;
+      font-size: 18px;
+    }
+    .spinner {
+      width: 38px;
+      height: 38px;
+      border: 4px solid #e2e8f0;
+      border-top: 4px solid #2563eb;
+      border-radius: 50%;
+      animation: spin 1s linear infinite;
+      margin: 0 auto 12px auto;
+    }
+    @keyframes spin {
+      0% { transform: rotate(0deg); }
+      100% { transform: rotate(360deg); }
+    }
+
+    /* 結果呈現卡片 */
+    .result-card {
+      display: none;
+      margin-top: 25px;
+      padding: 24px 20px;
+      border-radius: 22px;
+      animation: fadeIn 0.3s ease;
+      text-align: left;
+    }
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(10px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    /* 成功狀態 */
+    .res-success {
+      background: #f0fdf4;
+      border: 2px solid #86efac;
+    }
+    /* 已存在警告狀態 */
+    .res-warning {
+      background: #fffbeb;
+      border: 2px solid #fcd34d;
+    }
+    /* 失敗狀態 */
+    .res-error {
+      background: #fef2f2;
+      border: 2px solid #fca5a5;
+    }
+
+    .res-header {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin-bottom: 14px;
+      padding-bottom: 12px;
+      border-bottom: 1px dashed rgba(0,0,0,0.1);
+    }
+    .res-icon {
+      font-size: 32px;
+    }
+    .res-title {
+      font-size: 22px;
+      font-weight: bold;
+    }
+
+    .res-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 12px;
+      margin-bottom: 14px;
+    }
+    .res-field-label {
+      font-size: 12px;
+      color: #64748b;
+      margin-bottom: 2px;
+    }
+    .res-field-val {
+      font-size: 18px;
+      font-weight: bold;
+      color: #0f172a;
+    }
+    .id-badge {
+      display: inline-block;
+      font-size: 26px;
+      font-weight: 900;
+      color: #1e3a8a;
+      background: #dbeafe;
+      padding: 4px 14px;
+      border-radius: 12px;
+    }
+    .group-badge {
+      display: inline-block;
+      font-size: 18px;
+      font-weight: bold;
+      color: #7c2d12;
+      background: #ffedd5;
+      padding: 4px 12px;
+      border-radius: 12px;
+    }
+  </style>
+</head>
+<body>
+
+  <!-- 頂部導航 -->
+  <div class="nav-bar">
+    <a href="index.html" class="nav-btn">📷 掃描報到</a>
+    <a href="query.html" class="nav-btn">🔍 查詢看板</a>
+    <a href="rollcall.html" class="nav-btn">📋 檢錄專區</a>
+    <a href="walkin.html" class="nav-btn active">📝 臨時報到</a>
+  </div>
+
+  <div class="card">
+    <h2>📝 大會臨時報到專區</h2>
+    <div class="sub-title">現場服務台專用・自動比對總表母檔並派發第6階序號</div>
+
+    <div class="hint-box">
+      💡 <strong>操作說明</strong>：<br>
+      輸入受獎人身分證字號（支援條碼掃描槍），系統會比對總表母檔。確認符合資格後，將自動派發 <strong>F-XX 編號</strong>，並直接歸入 <strong>【第6階】</strong> 且同步完成報到！
+    </div>
+
+    <!-- 輸入操作區 -->
+    <div class="input-group">
+      <input 
+        type="text" 
+        id="walkinIdInput" 
+        class="id-input" 
+        placeholder="請輸入身分證字號..." 
+        autocomplete="off" 
+        autofocus 
+      />
+    </div>
+
+    <button type="button" id="btnSubmit" class="btn-submit" onclick="submitWalkIn()">
+      🔍 調檔並完成臨時報到
+    </button>
+
+    <!-- 載入中動畫 -->
+    <div id="loadingBox" class="loading-box">
+      <div class="spinner"></div>
+      <div>正在比對總表母檔並編製號碼牌...</div>
+    </div>
+
+    <!-- 結果卡片 -->
+    <div id="resCard" class="result-card">
+      <div class="res-header">
+        <span id="rIcon" class="res-icon">✅</span>
+        <span id="rTitle" class="res-title">臨時報到成功</span>
+      </div>
+
+      <div id="rBody"></div>
+    </div>
+  </div>
+
+  <script>
+    const DEFAULT_GAS_URL = "https://script.google.com/macros/s/AKfycbwQnQrRL0rWlM50-KTjrx2iC8xtYTvoL9e-NL56EiDE7dU_SsgnGT-45eoY3apswwE1xA/exec";
+    const API_URL = localStorage.getItem("CIP_GAS_URL") || DEFAULT_GAS_URL;
+
+    let rtdb = null;
+    if (typeof firebase !== 'undefined' && firebase.apps && firebase.apps.length) {
+      rtdb = firebase.database();
+    }
+
+    // 監聽 Enter 鍵直接送出
+    const inputEl = document.getElementById('walkinIdInput');
+    inputEl.addEventListener('keydown', e => {
+      if (e.key === 'Enter') {
+        submitWalkIn();
+      }
+    });
+
+    // 提示音 (Web Audio API)
+    function playSound(type) {
+      try {
+        const AudioCtx = window.AudioContext || window.webkitAudioContext;
+        if (!AudioCtx) return;
+        const ctx = new AudioCtx();
+        const osc = ctx.createOscillator();
+        const gain = ctx.createGain();
+
+        if (type === 'success') {
+          osc.type = "sine";
+          osc.frequency.setValueAtTime(523.25, ctx.currentTime); // C5
+          osc.frequency.setValueAtTime(659.25, ctx.currentTime + 0.1); // E5
+          osc.frequency.setValueAtTime(783.99, ctx.currentTime + 0.2); // G5
+          gain.gain.setValueAtTime(0.25, ctx.currentTime);
+          gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.35);
+          osc.connect(gain);
+          gain.connect(ctx.destination);
+          osc.start();
+          osc.stop(ctx.currentTime + 0.35);
+        } else if (type === 'warning') {
+          osc.type = "triangle";
+          osc.frequency.setValueAtTime(440, ctx.currentTime);
+          osc.frequency.setValueAtTime(330, ctx.currentTime + 0.15);
+          gain.gain.setValueAtTime(0.25, ctx.currentTime);
+          gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.3);
+          osc.connect(gain);
+          gain.connect(ctx.destination);
+          osc.start();
+          osc.stop(ctx.currentTime + 0.3);
+        } else {
+          osc.type = "sawtooth";
+          osc.frequency.setValueAtTime(220, ctx.currentTime);
+          osc.frequency.setValueAtTime(160, ctx.currentTime + 0.15);
+          gain.gain.setValueAtTime(0.3, ctx.currentTime);
+          gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.4);
+          osc.connect(gain);
+          gain.connect(ctx.destination);
+          osc.start();
+          osc.stop(ctx.currentTime + 0.4);
+        }
+      } catch (e) {
+        console.log("Audio not enabled");
+      }
+    }
+
+    // 身分證格式解析與正規化
+    function parseNationalId(raw) {
+      if (!raw) return "";
+      raw = raw.trim().toUpperCase();
+      const match = raw.match(/[A-Z][0-9A-Z][0-9]{8}/);
+      if (match) return match[0];
+      return raw;
+    }
+
+    // 執行臨時報到送出
+    async function submitWalkIn() {
+      const rawInput = inputEl.value.trim().toUpperCase();
+      const cleanId = parseNationalId(rawInput);
+
+      if (!cleanId || cleanId.length < 8) {
+        alert("請輸入完整正確的身分證字號！");
+        inputEl.focus();
+        return;
+      }
+
+      const btn = document.getElementById('btnSubmit');
+      const loading = document.getElementById('loadingBox');
+      const card = document.getElementById('resCard');
+
+      btn.disabled = true;
+      loading.style.display = 'block';
+      card.style.display = 'none';
+
+      try {
+        const res = await fetch(API_URL, {
+          method: "POST",
+          headers: { "Content-Type": "text/plain;charset=utf-8" },
+          body: JSON.stringify({
+            action: "processWalkIn",
+            idNumber: cleanId
+          })
+        });
+        const result = await res.json();
+        loading.style.display = 'none';
+        btn.disabled = false;
+        card.style.display = 'block';
+
+        const rIcon = document.getElementById('rIcon');
+        const rTitle = document.getElementById('rTitle');
+        const rBody = document.getElementById('rBody');
+
+        if (result.status === "success") {
+          // 成功新增
+          card.className = "result-card res-success";
+          rIcon.innerText = "🎉";
+          rTitle.innerText = "臨時報到成功！";
+          rTitle.style.color = "#166534";
+          playSound('success');
+
+          rBody.innerHTML = `
+            <div style="margin-bottom:14px; text-align:center;">
+              <span class="id-badge">${result.idNo}</span>
+              <span class="group-badge" style="margin-left:8px;">${result.groupName}</span>
+            </div>
+            <div class="res-grid">
+              <div>
+                <div class="res-field-label">受獎人姓名</div>
+                <div class="res-field-val">${result.name}</div>
+              </div>
+              <div>
+                <div class="res-field-label">族別</div>
+                <div class="res-field-val">${result.tribe || '-'}</div>
+              </div>
+              <div style="grid-column: span 2;">
+                <div class="res-field-label">獎勵項目</div>
+                <div class="res-field-val" style="font-size:16px;">${result.reward || '-'}</div>
+              </div>
+              <div style="grid-column: span 2;">
+                <div class="res-field-label">完成報到時間</div>
+                <div class="res-field-val" style="font-size:15px; color:#166534;">✅ ${result.checkInTime}</div>
+              </div>
+            </div>
+            <div style="background:#dcfce7; padding:10px 14px; border-radius:12px; font-size:14px; color:#14532d; font-weight:bold; text-align:center;">
+              🏷️ 請工作人員派發【${result.idNo}】號碼牌，並引導至【第6階】集合！
+            </div>
+          `;
+
+          // 推播至 Firebase 即時資料庫，讓檢錄台與大螢幕瞬間更新
+          if (rtdb && result.idNo) {
+            rtdb.ref(`/checkins/${result.idNo}`).set({
+              checkedIn: true,
+              time: result.checkInTime
+            });
+            rtdb.ref(`/records/${result.idNo}`).set({
+              lineup: false,
+              rollcall: false
+            });
+          }
+
+          inputEl.value = "";
+          inputEl.focus();
+
+        } else if (result.status === "already_exists") {
+          // 已在名冊中
+          card.className = "result-card res-warning";
+          rIcon.innerText = "⚠️";
+          rTitle.innerText = "此人已在名冊中";
+          rTitle.style.color = "#b45309";
+          playSound('warning');
+
+          rBody.innerHTML = `
+            <div style="font-size:16px; color:#92400e; font-weight:bold; margin-bottom:10px;">
+              該身分證字號已經在今日出席名冊內，不可重複新增！
+            </div>
+            <div class="res-grid">
+              <div>
+                <div class="res-field-label">既有編號</div>
+                <div class="res-field-val" style="color:#b45309;">${result.idNo || '-'}</div>
+              </div>
+              <div>
+                <div class="res-field-label">所屬組別</div>
+                <div class="res-field-val">${result.groupName || '-'}</div>
+              </div>
+              <div>
+                <div class="res-field-label">姓名</div>
+                <div class="res-field-val">${result.name || '-'}</div>
+              </div>
+              <div>
+                <div class="res-field-label">報到狀態</div>
+                <div class="res-field-val" style="font-size:14px;">${result.checkInTime ? '✅ 已報到 (' + result.checkInTime + ')' : '⚪ 尚未報到'}</div>
+              </div>
+            </div>
+            <div style="font-size:13px; color:#666;">
+              💡 若該受獎人尚未領取名牌，請直接以既有編號【${result.idNo}】核發。
+            </div>
+          `;
+
+        } else {
+          // 總表查無此人
+          card.className = "result-card res-error";
+          rIcon.innerText = "❌";
+          rTitle.innerText = "總表無此人資料";
+          rTitle.style.color = "#b91c1c";
+          playSound('error');
+
+          rBody.innerHTML = `
+            <div style="font-size:16px; color:#991b1b; font-weight:bold; margin-bottom:8px;">
+              ${result.message || "總表查無此身分證字號，請洽大會服務台！"}
+            </div>
+            <div style="font-size:13px; color:#7f1d1d; line-height:1.5;">
+              ⚠️ 請再次確認身分證字號是否輸入正確，或請受獎人出示身分證件至服務台人工核對。
+            </div>
+          `;
+        }
+
+      } catch (err) {
+        loading.style.display = 'none';
+        btn.disabled = false;
+        alert("連線發生錯誤：" + err);
+      }
+    }
+  </script>
+</body>
+</html>

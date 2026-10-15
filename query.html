@@ -26,28 +26,30 @@
     
     .nav-bar { 
       display: flex; 
-      gap: 16px; 
+      gap: 10px; 
       width: 95%; 
       max-width: 650px; 
       margin-top: 30px; 
       z-index: 10; 
       flex-shrink: 0;
+      flex-wrap: wrap;
     }
     .nav-btn { 
       flex: 1; 
-      padding: 15px 10px; 
+      min-width: 120px;
+      padding: 13px 8px; 
       background: rgba(240, 240, 240, 0.85); 
       backdrop-filter: blur(5px);
       -webkit-backdrop-filter: blur(5px);
       color: #444444; 
       border: 2px solid #dddddd; 
-      border-radius: 20px; 
+      border-radius: 18px; 
       text-decoration: none; 
       text-align: center; 
       font-weight: bold; 
-      font-size: 17px; 
+      font-size: 16px; 
       transition: all 0.2s ease;
-      box-shadow: 0 6px 15px rgba(0,0,0,0.08);
+      box-shadow: 0 4px 12px rgba(0,0,0,0.06);
     }
     .nav-btn:hover {
       background: #e5e5e5;
@@ -301,6 +303,7 @@
     <a href="index.html" class="nav-btn">報到頁面</a>
     <a href="query.html" class="nav-btn active">查詢看板</a>
     <a href="rollcall.html" class="nav-btn">檢錄專區</a>
+    <a href="walkin.html" class="nav-btn">臨時報到</a>
   </div>
   
   <div class="card">
