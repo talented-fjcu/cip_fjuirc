@@ -709,10 +709,10 @@
 
         if (currentStage === "第6階" && origGroup !== "第6階" && isLate) {
           nameExtra = `<span style="font-size:12px; background:#fef3c7; color:#92400e; padding:2px 8px; border-radius:8px; font-weight:bold; margin-left:6px; border:1px solid #fde68a;">⚠️ 過號 (原${origGroup})</span>`;
-          checkinBadge = `<span class="badge-checkin-yes" style="background:#fef3c7; color:#92400e; border:1px solid #fde68a; white-space:nowrap;">過號報到(移至第6階)</span>`;
+          checkinBadge = `<span class="badge-checkin-yes" style="background:#fef3c7; color:#92400e; border:1px solid #fde68a; white-space:nowrap;">過號報到</span>`;
         } else if (currentStage !== "第6階" && isLate) {
           nameExtra = `<span style="font-size:12px; background:#fee2e2; color:#991b1b; padding:2px 8px; border-radius:8px; font-weight:bold; margin-left:6px; border:1px solid #fca5a5;">⚠️ 已過號 (移至第6階)</span>`;
-          checkinBadge = `<span class="badge-checkin-no" style="background:#fef3c7; color:#92400e; border:1px solid #fde68a; white-space:nowrap;">過號報到(移至第6階)</span>`;
+          checkinBadge = `<span class="badge-checkin-no" style="background:#fef3c7; color:#92400e; border:1px solid #fde68a; white-space:nowrap;">過號報到</span>`;
         } else if (isCheckedIn) {
           checkinBadge = `<span class="badge-checkin-yes">已報到</span>`;
         } else {
