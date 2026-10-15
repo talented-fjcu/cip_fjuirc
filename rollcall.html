@@ -422,7 +422,18 @@
         let lineupCount = 0;
 
         db.forEach(r => {
-          if (r[1] && String(r[1]).trim() === stage) {
+          const gName = r[1] ? String(r[1]).trim() : '';
+          const checkIn = r[5] ? String(r[5]).trim() : '';
+          const isLate = checkIn.includes("過號");
+
+          let matchesThisStage = false;
+          if (stage === "第6階") {
+            matchesThisStage = (gName === "第6階") || isLate;
+          } else {
+            matchesThisStage = (gName === stage);
+          }
+
+          if (matchesThisStage) {
             totalCount++;
             const idNo = (r[0] !== undefined && r[0] !== null) ? String(r[0]).trim() : '';
             const rec = realTimeRecords[idNo] || realTimeRecords[idNo.toUpperCase()] || {};

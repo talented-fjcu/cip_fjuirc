@@ -633,18 +633,26 @@
         const groupName = (r[1] !== undefined && r[1] !== null) ? String(r[1]).trim() : '-';
         const name = (r[3] !== undefined && r[3] !== null) ? String(r[3]).trim() : '-';
 
-        // 階數過濾 (包含 trim 比對)
-        if (activeStage !== 'all' && groupName !== activeStage) {
-          return;
-        }
-
-        countTotal++;
-
         // 報到狀態 (支援 Google Sheets 與 Firebase 即時雙軌比對)
         const hasSheetCheckin = !!(r[5] && String(r[5]).trim() !== "");
         const live = liveCheckins[idNo] || liveCheckins[idNo.toUpperCase()] || {};
+        const liveTime = live.time ? String(live.time) : '';
+        const checkInStr = String(r[5] || liveTime).trim();
+        const isLate = checkInStr.includes("過號") || !!live.isLate;
         const hasLiveCheckin = !!live.checkedIn;
-        const isCheckedIn = hasSheetCheckin || hasLiveCheckin;
+        const isCheckedIn = hasSheetCheckin || hasLiveCheckin || isLate;
+
+        // 階數過濾 (第6階自動納入原第6階以及所有「過號」之受獎人)
+        if (activeStage !== 'all') {
+          if (activeStage === '第6階') {
+            const isStage6 = (groupName === '第6階');
+            if (!isStage6 && !isLate) return;
+          } else {
+            if (groupName !== activeStage) return;
+          }
+        }
+
+        countTotal++;
 
         // 整隊與檢錄狀態 (比對 idNo)
         const rec = realTimeRecords[idNo] || realTimeRecords[idNo.toUpperCase()] || {};
@@ -663,9 +671,19 @@
           if (!match) return;
         }
 
-        const checkinHtml = isCheckedIn 
-          ? `<span class="badge-checkin-yes">🟢 已報到</span>` 
-          : `<span class="badge-checkin-no">⚪ 未報到</span>`;
+        let checkinHtml = "";
+        let lateTag = "";
+
+        if (isLate) {
+          checkinHtml = `<span class="badge-checkin-yes" style="background:#fef3c7; color:#92400e; border:1px solid #fde68a;">⚠️ 過號報到</span>`;
+          if (groupName !== '第6階') {
+            lateTag = `<span style="font-size:11px; background:#fef3c7; color:#92400e; padding:2px 6px; border-radius:6px; font-weight:bold; border:1px solid #fde68a; margin-left:4px;">原${groupName}</span>`;
+          }
+        } else if (isCheckedIn) {
+          checkinHtml = `<span class="badge-checkin-yes">🟢 已報到</span>`;
+        } else {
+          checkinHtml = `<span class="badge-checkin-no">⚪ 未報到</span>`;
+        }
 
         // 依需求純檢視：不可點擊修改
         const lineupHtml = isLineup 
@@ -679,9 +697,10 @@
         html += `
           <div class="view-row">
             <div class="mobile-info-row" style="grid-column: span 3; display: flex; align-items:center; justify-content:space-between;">
-              <div style="display:flex; align-items:center; gap:12px;">
+              <div style="display:flex; align-items:center; gap:8px;">
                 <span class="v-id">#${idNo}</span>
                 <span class="v-name">${name}</span>
+                ${lateTag}
                 ${activeStage === 'all' ? `<span style="font-size:12px; background:#eff6ff; color:#1d4ed8; padding:3px 8px; border-radius:8px;">${groupName}</span>` : ''}
               </div>
               <div>${checkinHtml}</div>

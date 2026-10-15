@@ -97,20 +97,7 @@ function processScan(idNumber, lockedStages) {
         checkInTime = checkInTime ? checkInTime.toString().trim() : "";
       }
 
-      // 檢查此階是否已鎖定截止 (過號防護)
-      if (lockedStages && Array.isArray(lockedStages) && lockedStages.indexOf(groupName) !== -1) {
-        appendLog("一般報到", idNo, name, groupName, cleanId, "過號攔截", "此階段(" + groupName + ")已截止鎖定", ss);
-        return {
-          status: "locked",
-          idNo: idNo,
-          name: name,
-          groupName: groupName,
-          checkInTime: checkInTime,
-          message: "此階段檢錄已截止鎖定（過號）"
-        };
-      }
-
-      // 如果已經有報到時間，代表重複掃描
+      // 如果已經有報到時間，代表先前已完成報到 (無論是一般報到或過號報到)
       if (checkInTime !== "") {
         appendLog("一般報到", idNo, name, groupName, cleanId, "重複報到", "先前已於 " + checkInTime + " 完成報到", ss);
         return {
@@ -124,7 +111,31 @@ function processScan(idNumber, lockedStages) {
         };
       }
 
-      // 首次報到：產生當前台灣時區時間
+      // 檢查此階是否已鎖定截止 (過號處理：寫入「過號,時間」並回傳過號狀態引導至第6階)
+      if (lockedStages && Array.isArray(lockedStages) && lockedStages.indexOf(groupName) !== -1) {
+        const nowStr = Utilities.formatDate(new Date(), "Asia/Taipei", "yyyy-MM-dd HH:mm:ss");
+        const lateCheckInStr = "過號," + nowStr;
+
+        // 寫入 F 欄 (第 6 欄，列號為 i + 1)
+        sheet.getRange(i + 1, 6).setValue(lateCheckInStr);
+        SpreadsheetApp.flush();
+
+        appendLog("一般報到", idNo, name, groupName, cleanId, "過號報到", "此階段(" + groupName + ")已截止，寫入報到時間：" + lateCheckInStr + "，並移至第6階", ss);
+
+        return {
+          status: "locked",
+          idNo: idNo,
+          name: name,
+          groupName: groupName,
+          reward: reward,
+          isTravelPay: isTravelPay,
+          checkInTime: lateCheckInStr,
+          isLate: true,
+          message: "此階段檢錄已截止（已完成過號報到，請移至第6階檢錄頒獎）"
+        };
+      }
+
+      // 首次正常報到：產生當前台灣時區時間
       const nowStr = Utilities.formatDate(new Date(), "Asia/Taipei", "yyyy-MM-dd HH:mm:ss");
       
       // 寫入 F 欄 (第 6 欄，列號為 i + 1)

@@ -429,8 +429,29 @@
         // 3. 監聽門口即時報到推播
         rtdb.ref('/checkins').on('value', snap => {
           liveCheckins = snap.val() || {};
+          filterStageAttendees();
           renderList();
         });
+      }
+    }
+
+    // 依階數與過號規則篩選名冊：
+    // 第6階：包含原本第6階 + 所有報到時間標記「過號」之受獎人
+    // 其他階：原始所屬該階之受獎人
+    function filterStageAttendees() {
+      if (!db.length) return;
+      if (currentStage === "第6階") {
+        stageAttendees = db.filter(r => {
+          const gName = r[1] ? String(r[1]).trim() : '';
+          const idNo = r[0] ? String(r[0]).trim() : '';
+          const checkIn = r[5] ? String(r[5]).trim() : '';
+          const live = liveCheckins[idNo] || liveCheckins[idNo.toUpperCase()] || {};
+          const liveTime = live.time ? String(live.time) : '';
+          const isLate = checkIn.includes("過號") || liveTime.includes("過號") || !!live.isLate;
+          return (gName === "第6階") || isLate;
+        });
+      } else {
+        stageAttendees = db.filter(r => r[1] && String(r[1]).trim() === currentStage);
       }
     }
 
@@ -590,8 +611,7 @@
         const result = await res.json();
         if (result.success) {
           db = result.data;
-          // 篩選出屬於 currentStage 的學員
-          stageAttendees = db.filter(r => r[1] && String(r[1]).trim() === currentStage);
+          filterStageAttendees();
           renderList();
         }
       } catch (err) {
@@ -619,12 +639,16 @@
       stageAttendees.forEach(r => {
         const idNo = (r[0] !== undefined && r[0] !== null) ? String(r[0]).trim() : '-';
         const name = (r[3] !== undefined && r[3] !== null) ? String(r[3]).trim() : '-';
+        const origGroup = (r[1] !== undefined && r[1] !== null) ? String(r[1]).trim() : '';
         
         // 報到狀態 (優先採用 Firebase 即時推播，次為試算表原始欄位 r[5])
         const hasSheetCheckin = !!(r[5] && String(r[5]).trim() !== "");
         const live = liveCheckins[idNo] || liveCheckins[idNo.toUpperCase()] || {};
+        const liveTime = live.time ? String(live.time) : '';
+        const checkInStr = String(r[5] || liveTime).trim();
+        const isLate = checkInStr.includes("過號") || !!live.isLate;
         const hasLiveCheckin = !!live.checkedIn;
-        const isCheckedIn = hasSheetCheckin || hasLiveCheckin;
+        const isCheckedIn = hasSheetCheckin || hasLiveCheckin || isLate;
 
         const rec = realTimeRecords[idNo] || realTimeRecords[idNo.toUpperCase()] || {};
         const isLineup = !!rec.lineup;
@@ -640,9 +664,20 @@
           if (!match) return;
         }
 
-        const checkinBadge = isCheckedIn 
-          ? `<span class="badge-checkin-yes">🟢 已報到</span>`
-          : `<span class="badge-checkin-no">⚪ 未報到</span>`;
+        let checkinBadge = "";
+        let nameExtra = "";
+
+        if (currentStage === "第6階" && origGroup !== "第6階" && isLate) {
+          nameExtra = `<span style="font-size:12px; background:#fef3c7; color:#92400e; padding:2px 8px; border-radius:8px; font-weight:bold; margin-left:6px; border:1px solid #fde68a;">⚠️ 過號 (原${origGroup})</span>`;
+          checkinBadge = `<span class="badge-checkin-yes" style="background:#fef3c7; color:#92400e; border:1px solid #fde68a;">⚠️ 過號報到</span>`;
+        } else if (currentStage !== "第6階" && isLate) {
+          nameExtra = `<span style="font-size:12px; background:#fee2e2; color:#991b1b; padding:2px 8px; border-radius:8px; font-weight:bold; margin-left:6px; border:1px solid #fca5a5;">⚠️ 已過號 (移至第6階)</span>`;
+          checkinBadge = `<span class="badge-checkin-no" style="background:#fee2e2; color:#991b1b; font-weight:bold; border:1px solid #fca5a5;">⚠️ 過號 (移至第6階)</span>`;
+        } else if (isCheckedIn) {
+          checkinBadge = `<span class="badge-checkin-yes">🟢 已報到</span>`;
+        } else {
+          checkinBadge = `<span class="badge-checkin-no">⚪ 未報到</span>`;
+        }
 
         const lineupClass = isLineup ? "btn-toggle-box lineup-active" : "btn-toggle-box";
         const lineupText = isLineup ? "✅ 已整隊" : "⬜ 整隊";
@@ -656,7 +691,7 @@
             <div class="item-top-row" style="grid-column: span 3; display: flex; align-items:center; justify-content:space-between;">
               <div style="display:flex; align-items:center; gap:12px;">
                 <span class="cell-id">#${idNo}</span>
-                <span class="cell-name">${name}</span>
+                <span class="cell-name">${name}${nameExtra}</span>
               </div>
               <div class="cell-checkin">
                 ${checkinBadge}
