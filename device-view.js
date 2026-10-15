@@ -3,17 +3,22 @@
  * 支援手動切換、大字體排版切換與 localStorage 跨頁面記憶
  */
 (function() {
-  const STORAGE_KEY = "CIP_DEVICE_VIEW";
-
-  function getSavedMode() {
-    return localStorage.getItem(STORAGE_KEY) || detectDefaultMode();
-  }
+  const STORAGE_KEY = "CIP_DEVICE_VIEW_V3";
 
   function detectDefaultMode() {
     const w = window.innerWidth;
-    if (w >= 1024) return "desktop";
-    if (w >= 700) return "tablet";
+    if (w >= 900) return "desktop";
+    if (w >= 600) return "tablet";
     return "mobile";
+  }
+
+  function getSavedMode() {
+    const saved = localStorage.getItem(STORAGE_KEY);
+    if (saved && (saved === "desktop" || saved === "tablet" || saved === "mobile")) {
+      return saved;
+    }
+    // 若為首次或升級，依當前螢幕寬度自動給予最適模式
+    return detectDefaultMode();
   }
 
   function applyMode(mode) {
@@ -42,16 +47,16 @@
   function buildSwitcherHtml(activeMode) {
     return `
       <div class="device-switcher-bar">
-        <span class="device-switcher-title">👁️ 畫面模式：</span>
+        <span class="device-switcher-title">👁️ 畫面排版：</span>
         <div class="device-switcher-group">
           <button type="button" class="dev-btn ${activeMode === 'desktop' ? 'active' : ''}" data-mode="desktop" onclick="setDeviceMode('desktop')">
-            💻 電腦版
+            💻 電腦寬版
           </button>
           <button type="button" class="dev-btn ${activeMode === 'tablet' ? 'active' : ''}" data-mode="tablet" onclick="setDeviceMode('tablet')">
-            📟 平板版
+            📟 平板雙欄
           </button>
           <button type="button" class="dev-btn ${activeMode === 'mobile' ? 'active' : ''}" data-mode="mobile" onclick="setDeviceMode('mobile')">
-            📱 手機版
+            📱 手機單欄
           </button>
         </div>
       </div>
@@ -87,7 +92,7 @@
   }
 
   // 立即套用模式防止畫面閃爍
-  const initialMode = localStorage.getItem(STORAGE_KEY) || detectDefaultMode();
+  const initialMode = getSavedMode();
   document.documentElement.setAttribute("data-device-mode", initialMode);
 
   if (document.readyState === "loading") {

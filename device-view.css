@@ -18,7 +18,7 @@
   border: 1.5px solid #e2e8f0;
   margin: 12px auto 16px auto;
   width: fit-content;
-  max-width: 95%;
+  max-width: 96%;
   flex-wrap: wrap;
   z-index: 50;
   transition: all 0.2s ease;
@@ -71,17 +71,18 @@
 }
 
 /* ==========================================================================
-   【電腦版模式】 data-device-mode="desktop"
-   寬螢幕專屬大格局：容器展開、標準 6 欄大表格、字體放大清晰
+   【電腦寬版模式】 data-device-mode="desktop"
+   寬螢幕專屬大格局：容器展開、標準 3 欄並排大按鈕、清晰大表格
    ========================================================================== */
 html[data-device-mode="desktop"] .container,
 html[data-device-mode="desktop"] .card {
   width: 96% !important;
-  max-width: 1380px !important;
+  max-width: 1400px !important;
 }
 
 html[data-device-mode="desktop"] .nav-bar {
-  max-width: 1050px !important;
+  width: 96% !important;
+  max-width: 1400px !important;
 }
 
 html[data-device-mode="desktop"] .nav-btn {
@@ -89,24 +90,26 @@ html[data-device-mode="desktop"] .nav-btn {
   padding: 14px 16px !important;
 }
 
-/* 階段卡片清單與卡片容器改為多欄並排網格，不再單一狹長縱列 */
+/* 檢錄專區 (rollcall.html) 階數按鈕：電腦版嚴格採用 3 欄並排 (2 列共 6 階)，絕不再單一狹長縱列 */
 html[data-device-mode="desktop"] .stage-list {
+  display: grid !important;
+  grid-template-columns: repeat(3, 1fr) !important;
+  gap: 20px !important;
+  margin-bottom: 28px !important;
+}
+
+/* 查詢看板卡片容器：寬版 3～4 欄展開 */
+html[data-device-mode="desktop"] .cards-container {
   display: grid !important;
   grid-template-columns: repeat(auto-fill, minmax(360px, 1fr)) !important;
   gap: 18px !important;
-}
-
-html[data-device-mode="desktop"] .cards-container {
-  display: grid !important;
-  grid-template-columns: repeat(auto-fill, minmax(350px, 1fr)) !important;
-  gap: 16px !important;
 }
 
 /* 電腦版表格佈局：6 欄依序為 組別 ｜ 編號 ｜ 姓名 ｜ 報到情況 ｜ 整隊 ｜ 檢錄 */
 html[data-device-mode="desktop"] .attendee-item,
 html[data-device-mode="desktop"] .view-row {
   display: grid !important;
-  grid-template-columns: 105px 110px 1.6fr 1.3fr 135px 135px !important;
+  grid-template-columns: 110px 115px 1.6fr 1.3fr 140px 140px !important;
   padding: 18px 24px !important;
   gap: 14px !important;
   align-items: center !important;
@@ -132,7 +135,7 @@ html[data-device-mode="desktop"] .mobile-only-id {
 
 html[data-device-mode="desktop"] .cell-name,
 html[data-device-mode="desktop"] .v-name {
-  font-size: 21px !important;
+  font-size: 22px !important;
   font-weight: 800 !important;
   color: #0f172a !important;
 }
@@ -216,17 +219,18 @@ html[data-device-mode="desktop"] .lock-btn {
 }
 
 /* ==========================================================================
-   【平板版模式】 data-device-mode="tablet"
-   平板/觸控筆電專屬：字體特大、按鈕超寬大好點擊、舒適觸控距離
+   【平板雙欄模式】 data-device-mode="tablet"
+   平板/觸控筆電專屬：字體特大、按鈕超寬大好點擊、雙欄穩固並排
    ========================================================================== */
 html[data-device-mode="tablet"] .container,
 html[data-device-mode="tablet"] .card {
   width: 96% !important;
-  max-width: 1120px !important;
+  max-width: 1180px !important;
 }
 
 html[data-device-mode="tablet"] .nav-bar {
-  max-width: 900px !important;
+  width: 96% !important;
+  max-width: 1180px !important;
 }
 
 html[data-device-mode="tablet"] .nav-btn {
@@ -234,17 +238,18 @@ html[data-device-mode="tablet"] .nav-btn {
   padding: 15px 16px !important;
 }
 
-/* 階段卡片清單與卡片容器在平板上採用雙欄網格 */
+/* 檢錄專區 (rollcall.html) 階數按鈕：平板版嚴格採用 2 欄並排 (3 列共 6 階) */
 html[data-device-mode="tablet"] .stage-list {
   display: grid !important;
-  grid-template-columns: repeat(auto-fill, minmax(340px, 1fr)) !important;
+  grid-template-columns: repeat(2, 1fr) !important;
   gap: 16px !important;
+  margin-bottom: 26px !important;
 }
 
 html[data-device-mode="tablet"] .cards-container {
   display: grid !important;
-  grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)) !important;
-  gap: 14px !important;
+  grid-template-columns: repeat(2, 1fr) !important;
+  gap: 16px !important;
 }
 
 html[data-device-mode="tablet"] .attendee-item,
@@ -365,20 +370,20 @@ html[data-device-mode="tablet"] .lock-btn {
 }
 
 /* ==========================================================================
-   【手機版模式】 data-device-mode="mobile"
-   緊湊卡片化、單手拇指觸控、字大醒目高對比
+   【手機單欄模式】 data-device-mode="mobile"
+   緊湊卡片化、單手拇指觸控、字大醒目高對比 (放寬至 680px 避免過度狹窄)
    ========================================================================== */
 html[data-device-mode="mobile"] .container,
 html[data-device-mode="mobile"] .card {
-  width: 95% !important;
-  max-width: 520px !important;
+  width: 96% !important;
+  max-width: 680px !important;
   margin: 15px auto 45px auto !important;
-  padding: 22px 16px !important;
+  padding: 22px 18px !important;
 }
 
 html[data-device-mode="mobile"] .nav-bar {
-  width: 95% !important;
-  max-width: 520px !important;
+  width: 96% !important;
+  max-width: 680px !important;
   gap: 8px !important;
 }
 
@@ -386,6 +391,19 @@ html[data-device-mode="mobile"] .nav-btn {
   font-size: 15px !important;
   padding: 12px 6px !important;
   min-width: 100px !important;
+}
+
+/* 手機版階數按鈕：單欄直式卡片 */
+html[data-device-mode="mobile"] .stage-list {
+  display: grid !important;
+  grid-template-columns: 1fr !important;
+  gap: 14px !important;
+}
+
+html[data-device-mode="mobile"] .cards-container {
+  display: grid !important;
+  grid-template-columns: 1fr !important;
+  gap: 14px !important;
 }
 
 /* 手機版卡片化佈局 */
@@ -497,18 +515,30 @@ html[data-device-mode="mobile"] .lock-btn {
 }
 
 /* ==========================================================================
-   【查詢看板 query.html 專屬模式增強】
+   【查詢看板 query.html 專屬模式增強：自適應大格局表格】
    ========================================================================== */
 html[data-device-mode="desktop"] .table-container table th,
 html[data-device-mode="desktop"] .table-container table td {
   font-size: 16px !important;
-  padding: 16px 12px !important;
+  padding: 16px 14px !important;
+}
+
+html[data-device-mode="desktop"] .table-container table td.col-reward,
+html[data-device-mode="desktop"] .table-container table th.col-reward {
+  white-space: normal !important;
+  line-height: 1.5 !important;
 }
 
 html[data-device-mode="tablet"] .table-container table th,
 html[data-device-mode="tablet"] .table-container table td {
-  font-size: 17px !important;
-  padding: 18px 14px !important;
+  font-size: 16px !important;
+  padding: 16px 12px !important;
+}
+
+html[data-device-mode="tablet"] .table-container table td.col-reward,
+html[data-device-mode="tablet"] .table-container table th.col-reward {
+  white-space: normal !important;
+  line-height: 1.5 !important;
 }
 
 html[data-device-mode="mobile"] .table-container table th,
@@ -516,4 +546,3 @@ html[data-device-mode="mobile"] .table-container table td {
   font-size: 15px !important;
   padding: 12px 8px !important;
 }
-
