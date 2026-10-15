@@ -9,6 +9,8 @@
   <script src="https://www.gstatic.com/firebasejs/10.13.2/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.13.2/firebase-database-compat.js"></script>
   <script src="firebase-config.js"></script>
+  <link rel="stylesheet" href="device-view.css" />
+  <script src="device-view.js"></script>
   
   <style>
     * { 
@@ -311,6 +313,9 @@
     <a href="walkin.html" class="nav-btn">臨時報到</a>
   </div>
   
+  <!-- 畫面模式切換按鈕 (電腦 / 平板 / 手機) -->
+  <div id="deviceSwitcher"></div>
+
   <div class="card">
     <h2 style="margin-top:0;">大會報到即時看板</h2>
     <div id="diag" style="background:#fff3e0; padding:10px; border-radius:10px; margin-bottom:15px; font-size:14px; color:#e65100; font-weight:bold;">⏳ 正在連線讀取名冊...</div>

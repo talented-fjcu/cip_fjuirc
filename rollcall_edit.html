@@ -9,6 +9,8 @@
   <script src="https://www.gstatic.com/firebasejs/10.13.2/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.13.2/firebase-database-compat.js"></script>
   <script src="firebase-config.js"></script>
+  <link rel="stylesheet" href="device-view.css" />
+  <script src="device-view.js"></script>
 
   <style>
     * { 
@@ -444,6 +446,9 @@
 
   <div class="container">
     
+    <!-- 畫面模式切換按鈕 (電腦 / 平板 / 手機) -->
+    <div id="deviceSwitcher"></div>
+
     <!-- 頂部導航 -->
     <div class="top-bar">
       <!-- 需求明確：具有回到 rollcall.html 的按鈕 -->
