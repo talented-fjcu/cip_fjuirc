@@ -389,14 +389,29 @@
     .pin-input:focus {
       border-color: #1976d2;
     }
+    .pin-actions {
+      display: flex;
+      gap: 10px;
+    }
+    .pin-cancel-btn {
+      flex: 1;
+      padding: 13px;
+      background: #f1f5f9;
+      color: #475569;
+      border: 1px solid #cbd5e1;
+      border-radius: 14px;
+      font-size: 16px;
+      font-weight: bold;
+      cursor: pointer;
+    }
     .pin-submit-btn {
-      width: 100%;
-      padding: 14px;
+      flex: 1;
+      padding: 13px;
       background: #1976d2;
       color: #fff;
       border: none;
       border-radius: 14px;
-      font-size: 18px;
+      font-size: 16px;
       font-weight: bold;
       cursor: pointer;
       box-shadow: 0 4px 12px rgba(25,118,210,0.3);
@@ -404,17 +419,51 @@
     .pin-submit-btn:hover {
       background: #1565c0;
     }
+    .auth-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 7px 14px;
+      border-radius: 14px;
+      font-size: 13px;
+      font-weight: bold;
+      cursor: pointer;
+      border: none;
+      transition: all 0.2s;
+    }
+    .auth-badge.unauthed {
+      background: #fff7ed;
+      color: #c2410c;
+      border: 1.5px solid #fed7aa;
+    }
+    .auth-badge.unauthed:hover {
+      background: #ffedd5;
+    }
+    .auth-badge.authed {
+      background: #f0fdf4;
+      color: #15803d;
+      border: 1.5px solid #bbf7d0;
+      cursor: default;
+    }
   </style>
 </head>
 <body>
 
-  <!-- 密碼輸入彈窗 -->
+  <!-- 密碼輸入彈窗 (僅在進行整隊/檢錄/鎖定等編輯作業時要求) -->
   <div id="pwdModal">
     <div class="modal-box">
-      <h3 style="margin-top:0;">🔐 請輸入檢錄授權密碼</h3>
-      <div style="font-size:14px; color:#666;">請輸入 8 位數密碼以開啟檢錄編輯功能</div>
+      <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
+        <h3 style="margin:0; font-size:20px; color:#1e293b;">🔐 請輸入檢錄編輯密碼</h3>
+        <button type="button" onclick="closePwdModal()" style="background:none; border:none; font-size:22px; cursor:pointer; color:#94a3b8; line-height:1;">✕</button>
+      </div>
+      <div style="font-size:14px; color:#64748b; line-height:1.4; text-align:left; margin-bottom:10px;">
+        名冊檢視無需密碼；若需進行「整隊」、「檢錄」或「鎖定階段」編輯作業，請輸入 8 位數授權密碼。
+      </div>
       <input type="password" id="pinInput" class="pin-input" maxlength="20" placeholder="••••••••" autocomplete="off" />
-      <button class="pin-submit-btn" onclick="verifyPin()">解鎖進入</button>
+      <div class="pin-actions">
+        <button type="button" class="pin-cancel-btn" onclick="closePwdModal()">僅檢視</button>
+        <button type="button" class="pin-submit-btn" onclick="verifyPin()">解鎖編輯</button>
+      </div>
       <div id="pinError" style="color:#d32f2f; font-size:13px; margin-top:10px; display:none;">密碼錯誤，請重新輸入</div>
     </div>
   </div>
@@ -430,8 +479,10 @@
       <div class="current-stage-title" id="stageTitle">
         📋 階段檢錄作業
       </div>
-      <div style="font-size:13px; color:#2e7d32; font-weight:bold; background:#e8f5e9; padding:6px 12px; border-radius:12px;">
-        ⚡ 毫秒級同步
+      <div style="display:flex; align-items:center; gap:8px;">
+        <button type="button" id="authBadge" class="auth-badge unauthed" onclick="onAuthBadgeClick()">
+          🔒 檢視模式 (點此解鎖編輯)
+        </button>
       </div>
     </div>
 
@@ -601,6 +652,12 @@
 
     // 鎖定狀態切換 (連動 index.html 報到過號)
     function toggleStageLock() {
+      requireEditAuth(() => {
+        executeToggleStageLock();
+      });
+    }
+
+    function executeToggleStageLock() {
       const willLock = !isStageLocked;
       const confirmMsg = willLock 
         ? `確定要「鎖定【${currentStage}】」嗎？\n鎖定後，門口報到處若掃描到此階受獎人，將無法報到並直接顯示「❌ 過號」！`
@@ -645,6 +702,12 @@
 
     // 切換「整隊」狀態 (按一下打勾，再按一下取消打勾)
     function toggleLineup(idNo) {
+      requireEditAuth(() => {
+        executeToggleLineup(idNo);
+      });
+    }
+
+    function executeToggleLineup(idNo) {
       const current = realTimeRecords[idNo] || {};
       const newStatus = !current.lineup;
 
@@ -675,6 +738,12 @@
 
     // 切換「檢錄」狀態 (按一下打勾，再按一下取消打勾)
     function toggleRollcall(idNo) {
+      requireEditAuth(() => {
+        executeToggleRollcall(idNo);
+      });
+    }
+
+    function executeToggleRollcall(idNo) {
       const current = realTimeRecords[idNo] || {};
       const newStatus = !current.rollcall;
 
@@ -834,52 +903,92 @@
     }
 
     const DEFAULT_PIN = "64152195";
-    let syncIntervalId = null;
+    let pendingEditCallback = null;
 
-    function startAutoSync() {
-      if (syncIntervalId) return;
-      loadAttendeeData();
-      syncIntervalId = setInterval(() => {
-        loadAttendeeData();
-      }, 4000);
+    function isEditorAuthed() {
+      return sessionStorage.getItem("CIP_ROLLCALL_AUTH") === "true";
     }
 
-    function checkAuth() {
-      const isAuthed = sessionStorage.getItem("CIP_ROLLCALL_AUTH");
-      if (isAuthed === "true") return true;
+    function updateAuthUI() {
+      const badge = document.getElementById('authBadge');
+      if (!badge) return;
+      if (isEditorAuthed()) {
+        badge.className = "auth-badge authed";
+        badge.innerHTML = "🔓 已解鎖編輯";
+        badge.onclick = null;
+      } else {
+        badge.className = "auth-badge unauthed";
+        badge.innerHTML = "🔒 檢視模式 (點此解鎖編輯)";
+        badge.onclick = onAuthBadgeClick;
+      }
+    }
+
+    function onAuthBadgeClick() {
+      if (isEditorAuthed()) return;
+      openPwdModal(null);
+    }
+
+    function openPwdModal(callback) {
+      pendingEditCallback = callback;
       const modal = document.getElementById('pwdModal');
-      modal.style.display = 'flex';
+      const err = document.getElementById('pinError');
+      if (err) err.style.display = 'none';
+      if (modal) modal.style.display = 'flex';
       const inp = document.getElementById('pinInput');
       if (inp) {
         inp.value = '';
         inp.focus();
         inp.onkeydown = e => { if (e.key === 'Enter') verifyPin(); };
       }
-      return false;
+    }
+
+    function closePwdModal() {
+      pendingEditCallback = null;
+      const modal = document.getElementById('pwdModal');
+      if (modal) modal.style.display = 'none';
     }
 
     function verifyPin() {
       const pin = document.getElementById('pinInput').value.trim();
       if (pin === DEFAULT_PIN) {
         sessionStorage.setItem("CIP_ROLLCALL_AUTH", "true");
-        document.getElementById('pwdModal').style.display = 'none';
-        initFirebase();
-        startAutoSync();
+        closePwdModal();
+        updateAuthUI();
+        if (typeof pendingEditCallback === 'function') {
+          const cb = pendingEditCallback;
+          pendingEditCallback = null;
+          cb();
+        }
       } else {
         const err = document.getElementById('pinError');
-        err.style.display = 'block';
+        if (err) err.style.display = 'block';
         const inp = document.getElementById('pinInput');
-        inp.value = '';
-        inp.focus();
+        if (inp) {
+          inp.value = '';
+          inp.focus();
+        }
       }
     }
 
-    // 啟動
-    window.addEventListener('DOMContentLoaded', () => {
-      if (checkAuth()) {
-        initFirebase();
-        startAutoSync();
+    // 檢查編輯權限的包裝器：已授權則直接執行，未授權則跳出密碼驗證
+    function requireEditAuth(actionFn) {
+      if (isEditorAuthed()) {
+        actionFn();
+      } else {
+        openPwdModal(actionFn);
       }
+    }
+
+    // 啟動 (名冊檢視無需密碼，直接載入即時名單)
+    window.addEventListener('DOMContentLoaded', () => {
+      initFirebase();
+      loadAttendeeData();
+      updateAuthUI();
+
+      // 每 4 秒自動背景同步試算表最新名冊
+      setInterval(() => {
+        loadAttendeeData();
+      }, 4000);
     });
   </script>
 </body>
