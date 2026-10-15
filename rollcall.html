@@ -1,0 +1,426 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no" />
+  <title>檢錄專區 - 階數選擇</title>
+
+  <!-- 引入 Firebase SDK (相容模式 CDN) -->
+  <script src="https://www.gstatic.com/firebasejs/10.13.2/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.13.2/firebase-database-compat.js"></script>
+  <script src="firebase-config.js"></script>
+
+  <style>
+    * { 
+      box-sizing: border-box; 
+      -webkit-font-smoothing: antialiased; 
+    }
+    body, html { 
+      margin: 0; 
+      padding: 0; 
+      min-height: 100vh; 
+      font-family: "Microsoft JhengHei", "PingFang TC", sans-serif; 
+      display: flex; 
+      flex-direction: column; 
+      align-items: center; 
+      background-color: #f4f6f8;
+    }
+    
+    .nav-bar { 
+      display: flex; 
+      gap: 12px; 
+      width: 95%; 
+      max-width: 650px; 
+      margin-top: 25px; 
+    }
+    .nav-btn { 
+      flex: 1; 
+      padding: 14px 12px; 
+      background: #ffffff; 
+      color: #444444; 
+      border: 2px solid #dddddd; 
+      border-radius: 18px; 
+      text-decoration: none; 
+      text-align: center; 
+      font-weight: bold; 
+      font-size: 16px; 
+      box-shadow: 0 4px 12px rgba(0,0,0,0.06);
+      transition: all 0.2s;
+    }
+    .nav-btn.active {
+      background: #cc1111;
+      color: #ffffff;
+      border-color: #cc1111;
+    }
+
+    .card { 
+      background: #ffffff; 
+      padding: 30px 22px; 
+      border-radius: 28px; 
+      box-shadow: 0 15px 35px rgba(0,0,0,0.08); 
+      width: 95%; 
+      max-width: 620px; 
+      margin: 20px 0 50px 0;
+      border: 1px solid rgba(0, 0, 0, 0.06); 
+    }
+
+    h2 {
+      margin: 0 0 6px 0;
+      color: #1a1a1a;
+      font-size: 26px;
+      text-align: center;
+    }
+    .sub-title {
+      text-align: center;
+      color: #666;
+      font-size: 14px;
+      margin-bottom: 24px;
+    }
+
+    /* 連線指示標籤 */
+    .sync-status {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+      font-size: 12px;
+      color: #2e7d32;
+      background: #e8f5e9;
+      padding: 6px 12px;
+      border-radius: 20px;
+      margin: 0 auto 20px auto;
+      width: fit-content;
+      font-weight: bold;
+    }
+    .sync-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: #2e7d32;
+      box-shadow: 0 0 0 0 rgba(46, 125, 50, 0.7);
+      animation: pulse 1.8s infinite;
+    }
+    @keyframes pulse {
+      0% { box-shadow: 0 0 0 0 rgba(46, 125, 50, 0.7); }
+      70% { box-shadow: 0 0 0 8px rgba(46, 125, 50, 0); }
+      100% { box-shadow: 0 0 0 0 rgba(46, 125, 50, 0); }
+    }
+
+    /* 階段大按鈕清單 */
+    .stage-list {
+      display: flex;
+      flex-direction: column;
+      gap: 14px;
+      margin-bottom: 28px;
+    }
+    .stage-card-btn {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 20px 22px;
+      background: #ffffff;
+      border: 2px solid #e0e0e0;
+      border-radius: 20px;
+      text-decoration: none;
+      color: #222;
+      font-weight: bold;
+      font-size: 20px;
+      box-shadow: 0 4px 10px rgba(0,0,0,0.04);
+      transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+    .stage-card-btn:hover, .stage-card-btn:active {
+      transform: translateY(-2px);
+      border-color: #1976d2;
+      background: #f7faff;
+      box-shadow: 0 8px 20px rgba(25, 118, 210, 0.15);
+    }
+
+    .stage-info {
+      display: flex;
+      flex-direction: column;
+      align-items: flex-start;
+      gap: 4px;
+    }
+    .stage-title {
+      font-size: 22px;
+      color: #1a1a1a;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    .stage-stat {
+      font-size: 13px;
+      color: #666;
+      font-weight: normal;
+    }
+
+    .stage-badge {
+      font-size: 13px;
+      padding: 6px 14px;
+      border-radius: 14px;
+      font-weight: bold;
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+    }
+    .badge-open {
+      background: #e3f2fd;
+      color: #1565c0;
+      border: 1px solid #bbdefb;
+    }
+    .badge-locked {
+      background: #ffebee;
+      color: #c62828;
+      border: 1px solid #ffcdd2;
+      animation: pulse-red 2s infinite;
+    }
+    @keyframes pulse-red {
+      0%, 100% { transform: scale(1); }
+      50% { transform: scale(1.04); }
+    }
+
+    /* 底部前往綜合看板按鈕 */
+    .overview-btn-wrapper {
+      padding-top: 15px;
+      border-top: 2px dashed #eee;
+    }
+    .btn-goto-overview {
+      display: block;
+      width: 100%;
+      padding: 16px;
+      background: #f3e8ff;
+      color: #6b21a8;
+      border: 2px solid #d8b4fe;
+      border-radius: 18px;
+      text-decoration: none;
+      text-align: center;
+      font-size: 18px;
+      font-weight: bold;
+      transition: all 0.2s;
+    }
+    .btn-goto-overview:hover {
+      background: #ebd5ff;
+      border-color: #c084fc;
+    }
+
+    /* 密碼防護彈窗 (預留未來啟用) */
+    #pwdModal {
+      display: none;
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,0.6);
+      backdrop-filter: blur(4px);
+      z-index: 1000;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+    }
+    .modal-box {
+      background: #fff;
+      padding: 28px 24px;
+      border-radius: 24px;
+      max-width: 400px;
+      width: 100%;
+      text-align: center;
+      box-shadow: 0 20px 40px rgba(0,0,0,0.2);
+    }
+    .pin-input {
+      width: 100%;
+      padding: 14px;
+      font-size: 24px;
+      text-align: center;
+      letter-spacing: 10px;
+      border: 2px solid #ddd;
+      border-radius: 14px;
+      margin: 18px 0;
+    }
+    .pin-submit-btn {
+      width: 100%;
+      padding: 14px;
+      background: #1976d2;
+      color: #fff;
+      border: none;
+      border-radius: 14px;
+      font-size: 18px;
+      font-weight: bold;
+      cursor: pointer;
+    }
+  </style>
+</head>
+<body>
+
+  <!-- 導覽列 -->
+  <div class="nav-bar">
+    <a href="index.html" class="nav-btn">📷 掃描報到</a>
+    <a href="query.html" class="nav-btn">🔍 查詢看板</a>
+    <a href="rollcall.html" class="nav-btn active">📋 檢錄專區</a>
+  </div>
+
+  <div class="card">
+    <div class="sync-status">
+      <span class="sync-dot"></span>
+      <span>Firebase 毫秒級即時連線中</span>
+    </div>
+
+    <h2>📋 檢錄階段選擇</h2>
+    <div class="sub-title">請點選組別進入檢錄與整隊作業</div>
+
+    <!-- 五個階段按鈕清單 (第一階至第五階) -->
+    <div class="stage-list" id="stageList">
+      <!-- 動態或預設由 JS 渲染 -->
+    </div>
+
+    <!-- 前往綜合看板按鈕 (符合需求：rollcall.html 可前往 overview.html) -->
+    <div class="overview-btn-wrapper">
+      <a href="overview.html" class="btn-goto-overview">
+        📊 前往大會綜合看板（純檢視）➔
+      </a>
+    </div>
+  </div>
+
+  <!-- 密碼輸入彈窗 (預留未來開啟) -->
+  <div id="pwdModal">
+    <div class="modal-box">
+      <h3 style="margin-top:0;">🔐 請輸入檢錄授權密碼</h3>
+      <div style="font-size:14px; color:#666;">請輸入 5 位數密碼以開啟檢錄功能</div>
+      <input type="password" id="pinInput" class="pin-input" maxlength="5" placeholder="•••••" />
+      <button class="pin-submit-btn" onclick="verifyPin()">解鎖進入</button>
+      <div id="pinError" style="color:#d32f2f; font-size:13px; margin-top:10px; display:none;">密碼錯誤，請重新輸入</div>
+    </div>
+  </div>
+
+  <script>
+    // =========================================================================
+    // 設定區
+    // =========================================================================
+    // 密碼設定開關：目前依需求先設為 false，未來要開改為 true 並設定 PIN 即可！
+    const REQUIRE_PASSWORD = false; 
+    const DEFAULT_PIN = "12345";
+
+    const STAGES = ["第一階", "第二階", "第三階", "第四階", "第五階"];
+    const DEFAULT_GAS_URL = "https://script.google.com/macros/s/AKfycbwQnQrRL0rWlM50-KTjrx2iC8xtYTvoL9e-NL56EiDE7dU_SsgnGT-45eoY3apswwE1xA/exec";
+    const API_URL = localStorage.getItem("CIP_GAS_URL") || DEFAULT_GAS_URL;
+
+    let db = [];
+    let lockedStages = {};
+    let realTimeRecords = {};
+    let rtdb = null;
+
+    // 檢查密碼授權
+    function checkAuth() {
+      if (!REQUIRE_PASSWORD) return true;
+      const isAuthed = sessionStorage.getItem("CIP_ROLLCALL_AUTH");
+      if (isAuthed === "true") return true;
+      document.getElementById('pwdModal').style.display = 'flex';
+      return false;
+    }
+
+    function verifyPin() {
+      const pin = document.getElementById('pinInput').value.trim();
+      if (pin === DEFAULT_PIN) {
+        sessionStorage.setItem("CIP_ROLLCALL_AUTH", "true");
+        document.getElementById('pwdModal').style.display = 'none';
+        renderStages();
+      } else {
+        document.getElementById('pinError').style.display = 'block';
+      }
+    }
+
+    // 初始化 Firebase 即時監聽
+    function initFirebase() {
+      if (typeof firebase !== 'undefined' && firebase.apps && firebase.apps.length) {
+        rtdb = firebase.database();
+
+        // 監聽各階段鎖定狀態
+        rtdb.ref('/lockedStages').on('value', snap => {
+          lockedStages = snap.val() || {};
+          renderStages();
+        });
+
+        // 監聽即時整隊與檢錄進度
+        rtdb.ref('/records').on('value', snap => {
+          realTimeRecords = snap.val() || {};
+          renderStages();
+        });
+      }
+    }
+
+    // 從後端撈取基本名冊 (取得各階總人數)
+    async function loadAttendeeData() {
+      try {
+        const res = await fetch(API_URL, {
+          method: "POST",
+          headers: { "Content-Type": "text/plain;charset=utf-8" },
+          body: JSON.stringify({ action: "getAdminData" })
+        });
+        const result = await res.json();
+        if (result.success) {
+          db = result.data;
+          renderStages();
+        }
+      } catch (e) {
+        console.warn("載入名冊失敗或處於離線狀態:", e);
+      }
+    }
+
+    // 渲染五個階段按鈕
+    function renderStages() {
+      const container = document.getElementById('stageList');
+      if (!container) return;
+
+      let html = "";
+      STAGES.forEach(stage => {
+        const isLocked = !!lockedStages[stage];
+
+        // 計算該階統計
+        let totalCount = 0;
+        let rollcallCount = 0;
+        let lineupCount = 0;
+
+        db.forEach(r => {
+          if (r[1] && String(r[1]).trim() === stage) {
+            totalCount++;
+            const idNo = r[0];
+            const rec = realTimeRecords[idNo];
+            if (rec && rec.rollcall) rollcallCount++;
+            if (rec && rec.lineup) lineupCount++;
+          }
+        });
+
+        const badgeHtml = isLocked 
+          ? `<span class="stage-badge badge-locked">🔒 已鎖定 (過號中)</span>`
+          : `<span class="stage-badge badge-open">🔓 開放檢錄</span>`;
+
+        const statText = totalCount > 0 
+          ? `總人數 ${totalCount} 人 ｜ 檢錄 ${rollcallCount} ｜ 整隊 ${lineupCount}`
+          : `點擊進入進行整隊與檢錄`;
+
+        html += `
+          <a href="rollcall_edit.html?stage=${encodeURIComponent(stage)}" class="stage-card-btn">
+            <div class="stage-info">
+              <div class="stage-title">
+                <span>${stage}</span>
+              </div>
+              <div class="stage-stat">${statText}</div>
+            </div>
+            <div>
+              ${badgeHtml}
+            </div>
+          </a>
+        `;
+      });
+
+      container.innerHTML = html;
+    }
+
+    // 啟動流程
+    window.addEventListener('DOMContentLoaded', () => {
+      initFirebase();
+      renderStages();
+      if (checkAuth()) {
+        loadAttendeeData();
+      }
+    });
+  </script>
+</body>
+</html>

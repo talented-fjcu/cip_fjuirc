@@ -8,6 +8,11 @@
   <!-- 引入 HTML5 相機條碼與 QR Code 辨識引擎 (支援 Code 39 身分證條碼) -->
   <script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
 
+  <!-- 引入 Firebase SDK (相容模式 CDN) -->
+  <script src="https://www.gstatic.com/firebasejs/10.13.2/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.13.2/firebase-database-compat.js"></script>
+  <script src="firebase-config.js"></script>
+
   <style>
     * { 
       box-sizing: border-box; 
@@ -31,7 +36,7 @@
     /* 導覽列：報到與看板 */
     .nav-bar { 
       display: flex; 
-      gap: 16px; 
+      gap: 12px; 
       width: 95%; 
       max-width: 650px; 
       margin-top: 25px; 
@@ -40,7 +45,7 @@
     }
     .nav-btn { 
       flex: 1; 
-      padding: 18px 16px; 
+      padding: 15px 10px; 
       background: rgba(240, 240, 240, 0.85); 
       backdrop-filter: blur(5px);
       -webkit-backdrop-filter: blur(5px);
@@ -50,7 +55,7 @@
       text-decoration: none; 
       text-align: center; 
       font-weight: bold; 
-      font-size: 20px; 
+      font-size: 17px; 
       transition: all 0.2s ease;
       box-shadow: 0 6px 15px rgba(0,0,0,0.08);
     }
@@ -231,6 +236,7 @@
   <div class="nav-bar">
     <a href="index.html" class="nav-btn active">報到頁面</a>
     <a href="query.html" class="nav-btn">查詢看板</a>
+    <a href="rollcall.html" class="nav-btn">檢錄專區</a>
   </div>
 
   <div style="flex:1; display:flex; align-items:center; width:100%; justify-content:center; padding-bottom: 50px;">
@@ -438,6 +444,38 @@
       }
     }
 
+    // 警示提示音 (過號或錯誤時鳴響)
+    function playWarningTone() {
+      try {
+        const AudioCtx = window.AudioContext || window.webkitAudioContext;
+        if (!AudioCtx) return;
+        const ctx = new AudioCtx();
+        const osc = ctx.createOscillator();
+        const gain = ctx.createGain();
+        osc.type = "sawtooth";
+        osc.frequency.setValueAtTime(220, ctx.currentTime);
+        osc.frequency.setValueAtTime(150, ctx.currentTime + 0.15);
+        gain.gain.setValueAtTime(0.3, ctx.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.4);
+        osc.connect(gain);
+        gain.connect(ctx.destination);
+        osc.start();
+        osc.stop(ctx.currentTime + 0.4);
+      } catch (e) {
+        console.log("Audio not enabled");
+      }
+    }
+
+    // Firebase 即時鎖定狀態監聽
+    let lockedStages = {};
+    let rtdb = null;
+    if (typeof firebase !== 'undefined' && firebase.apps && firebase.apps.length) {
+      rtdb = firebase.database();
+      rtdb.ref('/lockedStages').on('value', snap => {
+        lockedStages = snap.val() || {};
+      });
+    }
+
     // =========================================================================
     // API 呼叫與報到處理
     // =========================================================================
@@ -493,17 +531,46 @@
       document.getElementById('loading').style.display = 'block';
       
       try {
-        const res = await callGasApi("processScan", { idNumber: cleanId });
+        const lockedList = Object.keys(lockedStages).filter(k => lockedStages[k]);
+        const res = await callGasApi("processScan", { idNumber: cleanId, lockedStages: lockedList });
         document.getElementById('loading').style.display = 'none';
         const card = document.getElementById('resCard'); 
         card.style.display = 'block';
         manualInput.value = "";
         
+        if (res.status === "locked" || ((res.status === "success" || res.status === "already") && res.groupName && lockedStages[res.groupName])) {
+          // 該階已被鎖定：阻擋報到並顯示「過號」
+          document.getElementById('resIcon').innerText = "❌";
+          document.getElementById('resTitle').innerText = "過號（該階已截止報到）";
+          document.getElementById('resTitle').style.color = "#d32f2f";
+
+          const nameEl = document.getElementById('resName');
+          nameEl.style.fontSize = '2.8rem';
+          nameEl.style.color = '#d32f2f';
+          nameEl.innerText = res.name || '';
+
+          const idNoEl = document.getElementById('resIdNo');
+          idNoEl.innerHTML = `編號：${res.idNo || ''} ｜ 組別：${res.groupName}<br><span style="color:#b91c1c; font-size:16px; font-weight:bold;">⚠️ 此階段檢錄已鎖定截止，請洽大會服務台！</span>`;
+
+          playWarningTone();
+          setTimeout(resetUI, 5000);
+          return;
+        }
+
         if (res.status === "success" || res.status === "already") {
           if (res.status === "success") {
             document.getElementById('resIcon').innerText = "✅";
             document.getElementById('resTitle').innerText = "報到成功";
             document.getElementById('resTitle').style.color = "#2e7d32";
+            playBeep();
+
+            // 即時推播報到狀態給檢錄與綜合看板
+            if (rtdb && res.idNo) {
+              rtdb.ref(`/checkins/${res.idNo}`).set({
+                checkedIn: true,
+                time: res.checkInTime || new Date().toISOString()
+              });
+            }
           } else {
             document.getElementById('resIcon').innerText = "⚠️";
             document.getElementById('resTitle').innerText = "重複報到";

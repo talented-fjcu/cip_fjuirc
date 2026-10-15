@@ -26,7 +26,7 @@ function doPost(e) {
     const action = request.action;
 
     if (action === "processScan") {
-      return jsonResponse(processScan(request.idNumber));
+      return jsonResponse(processScan(request.idNumber, request.lockedStages));
     } else if (action === "getAdminData") {
       return jsonResponse(getAdminData());
     }
@@ -59,8 +59,9 @@ function doGet(e) {
 /**
  * 執行報到掃描
  * @param {string} idNumber 身分證字號
+ * @param {Array} lockedStages 已鎖定截止之階數清單 (例如 ["第一階"])
  */
-function processScan(idNumber) {
+function processScan(idNumber, lockedStages) {
   if (!idNumber) {
     return { status: "not_found", message: "身分證字號不可為空" };
   }
@@ -89,6 +90,18 @@ function processScan(idNumber) {
         checkInTime = Utilities.formatDate(checkInTime, "Asia/Taipei", "yyyy-MM-dd HH:mm:ss");
       } else {
         checkInTime = checkInTime ? checkInTime.toString().trim() : "";
+      }
+
+      // 檢查此階是否已鎖定截止 (過號防護)
+      if (lockedStages && Array.isArray(lockedStages) && lockedStages.indexOf(groupName) !== -1) {
+        return {
+          status: "locked",
+          idNo: idNo,
+          name: name,
+          groupName: groupName,
+          checkInTime: checkInTime,
+          message: "此階段檢錄已截止鎖定（過號）"
+        };
       }
 
       // 如果已經有報到時間，代表重複掃描

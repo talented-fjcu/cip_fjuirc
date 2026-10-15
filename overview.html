@@ -1,0 +1,548 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no" />
+  <title>大會即時綜合檢視看板</title>
+
+  <!-- 引入 Firebase SDK (相容模式 CDN) -->
+  <script src="https://www.gstatic.com/firebasejs/10.13.2/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.13.2/firebase-database-compat.js"></script>
+  <script src="firebase-config.js"></script>
+
+  <style>
+    * { 
+      box-sizing: border-box; 
+      -webkit-font-smoothing: antialiased; 
+    }
+    body, html { 
+      margin: 0; 
+      padding: 0; 
+      min-height: 100vh; 
+      font-family: "Microsoft JhengHei", "PingFang TC", sans-serif; 
+      background-color: #f4f6f8;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+    }
+
+    .container {
+      width: 95%;
+      max-width: 860px;
+      margin: 25px 0 60px 0;
+    }
+
+    /* 頂部標題列 (依需求規定：嚴格禁止放置回到 rollcall.html 的連結) */
+    .header-box {
+      background: #ffffff;
+      border-radius: 24px;
+      padding: 22px 24px;
+      box-shadow: 0 10px 25px rgba(0,0,0,0.06);
+      border: 1px solid #e5e7eb;
+      margin-bottom: 18px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 12px;
+    }
+    .header-title {
+      font-size: 24px;
+      font-weight: bold;
+      color: #111827;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    .read-only-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      background: #f1f5f9;
+      color: #475569;
+      border: 1px solid #cbd5e1;
+      font-size: 13px;
+      font-weight: bold;
+      padding: 6px 14px;
+      border-radius: 20px;
+    }
+    .live-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: #10b981;
+      box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.7);
+      animation: pulse-green 1.8s infinite;
+    }
+    @keyframes pulse-green {
+      0% { box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.7); }
+      70% { box-shadow: 0 0 0 8px rgba(16, 185, 129, 0); }
+      100% { box-shadow: 0 0 0 0 rgba(16, 185, 129, 0); }
+    }
+
+    /* 五個階段切換按鈕列 (需求：上面有五個按鈕可以篩選要顯示哪個階段的資料) */
+    .stage-tabs-container {
+      margin-bottom: 18px;
+    }
+    .stage-tabs-label {
+      font-size: 14px;
+      font-weight: bold;
+      color: #4b5563;
+      margin-bottom: 8px;
+    }
+    .stage-tabs-row {
+      display: flex;
+      gap: 8px;
+      overflow-x: auto;
+      padding-bottom: 6px;
+      -webkit-overflow-scrolling: touch;
+    }
+    .stage-tab-btn {
+      flex: 1;
+      min-width: 95px;
+      padding: 12px 10px;
+      border-radius: 16px;
+      border: 2px solid #d1d5db;
+      background: #ffffff;
+      color: #374151;
+      font-size: 15px;
+      font-weight: bold;
+      cursor: pointer;
+      text-align: center;
+      transition: all 0.2s;
+      white-space: nowrap;
+      box-shadow: 0 2px 6px rgba(0,0,0,0.03);
+    }
+    .stage-tab-btn:hover {
+      border-color: #9ca3af;
+      background: #f9fafb;
+    }
+    .stage-tab-btn.active {
+      background: #1e3a8a;
+      color: #ffffff;
+      border-color: #1e3a8a;
+      box-shadow: 0 4px 12px rgba(30, 58, 138, 0.25);
+    }
+    .stage-tab-btn.is-locked {
+      border-color: #f87171;
+    }
+
+    /* 統計指標卡片 */
+    .overview-stats {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 10px;
+      margin-bottom: 18px;
+    }
+    .stat-card {
+      background: #ffffff;
+      padding: 14px;
+      border-radius: 18px;
+      text-align: center;
+      border: 1px solid #e5e7eb;
+      box-shadow: 0 4px 10px rgba(0,0,0,0.03);
+    }
+    .stat-label {
+      font-size: 12px;
+      color: #6b7280;
+      margin-bottom: 4px;
+    }
+    .stat-num {
+      font-size: 22px;
+      font-weight: bold;
+      color: #111827;
+    }
+
+    /* 搜尋列 */
+    .search-box {
+      margin-bottom: 18px;
+    }
+    .search-bar {
+      width: 100%;
+      padding: 14px 18px;
+      font-size: 16px;
+      border: 2px solid #e5e7eb;
+      border-radius: 18px;
+      background: #ffffff;
+      outline: none;
+      box-shadow: 0 4px 10px rgba(0,0,0,0.03);
+    }
+    .search-bar:focus {
+      border-color: #1e3a8a;
+    }
+
+    /* 唯讀名單表格卡片 */
+    .content-card {
+      background: #ffffff;
+      border-radius: 24px;
+      box-shadow: 0 10px 30px rgba(0,0,0,0.07);
+      border: 1px solid #e5e7eb;
+      overflow: hidden;
+    }
+
+    /* 列表佈局：編號 / 姓名 / 報到情況 / 整隊 / 檢錄 */
+    .view-row {
+      display: grid;
+      grid-template-columns: 80px 1.5fr 1.2fr 100px 100px;
+      align-items: center;
+      padding: 16px 20px;
+      border-bottom: 1px solid #f1f5f9;
+      gap: 12px;
+    }
+    .view-row:last-child {
+      border-bottom: none;
+    }
+    .view-header {
+      background: #f8fafc;
+      font-weight: bold;
+      color: #475569;
+      font-size: 14px;
+      border-bottom: 2px solid #e2e8f0;
+    }
+
+    .v-id {
+      font-weight: bold;
+      color: #334155;
+      font-size: 16px;
+    }
+    .v-name {
+      font-weight: bold;
+      font-size: 18px;
+      color: #0f172a;
+    }
+
+    /* 狀態標籤 (純檢視，不可點擊) */
+    .badge-checkin-yes {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      color: #166534;
+      background: #dcfce7;
+      padding: 6px 12px;
+      border-radius: 12px;
+      font-weight: bold;
+      font-size: 13px;
+    }
+    .badge-checkin-no {
+      display: inline-flex;
+      align-items: center;
+      color: #94a3b8;
+      background: #f1f5f9;
+      padding: 6px 12px;
+      border-radius: 12px;
+      font-size: 13px;
+    }
+
+    /* 整隊與檢錄圖示 (純檢視) */
+    .v-badge-done {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 4px;
+      background: #f0fdf4;
+      color: #16a34a;
+      border: 1.5px solid #86efac;
+      padding: 6px 12px;
+      border-radius: 14px;
+      font-weight: bold;
+      font-size: 14px;
+      width: 100%;
+    }
+    .v-badge-empty {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 4px;
+      background: #f8fafc;
+      color: #94a3b8;
+      border: 1.5px dashed #cbd5e1;
+      padding: 6px 12px;
+      border-radius: 14px;
+      font-size: 13px;
+      width: 100%;
+    }
+
+    /* 手機螢幕優化 */
+    @media (max-width: 680px) {
+      .overview-stats {
+        grid-template-columns: repeat(2, 1fr);
+      }
+      .view-header {
+        display: none;
+      }
+      .view-row {
+        display: flex;
+        flex-direction: column;
+        align-items: stretch;
+        padding: 16px;
+        gap: 10px;
+        border-bottom: 2px solid #eef2f6;
+      }
+      .mobile-info-row {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+      }
+      .mobile-status-row {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 10px;
+        margin-top: 4px;
+      }
+    }
+  </style>
+</head>
+<body>
+
+  <div class="container">
+    
+    <!-- 頂部標題資訊列 (無任何導向 rollcall.html 之按鈕，符合權限隔離) -->
+    <div class="header-box">
+      <div class="header-title">
+        <span>📊 大會即時綜合檢視看板</span>
+      </div>
+      <div class="read-only-badge">
+        <span class="live-dot"></span>
+        <span>純檢視模式 ｜ 0.1s 即時連動</span>
+      </div>
+    </div>
+
+    <!-- 五個階段篩選按鈕 (需求：上面有五個按鈕可以篩選要顯示哪個階段的資料) -->
+    <div class="stage-tabs-container">
+      <div class="stage-tabs-label">📌 點選組別進行即時切換檢視：</div>
+      <div class="stage-tabs-row" id="stageTabsRow">
+        <button type="button" class="stage-tab-btn active" onclick="switchStage('all')">全部階數</button>
+        <button type="button" class="stage-tab-btn" onclick="switchStage('第一階')">第一階</button>
+        <button type="button" class="stage-tab-btn" onclick="switchStage('第二階')">第二階</button>
+        <button type="button" class="stage-tab-btn" onclick="switchStage('第三階')">第三階</button>
+        <button type="button" class="stage-tab-btn" onclick="switchStage('第四階')">第四階</button>
+        <button type="button" class="stage-tab-btn" onclick="switchStage('第五階')">第五階</button>
+      </div>
+    </div>
+
+    <!-- 統計小方塊 -->
+    <div class="overview-stats">
+      <div class="stat-card">
+        <div class="stat-label">此組總人數</div>
+        <div class="stat-num" id="sTotal">0</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-label">已完成報到</div>
+        <div class="stat-num" style="color:#16a34a;" id="sCheckedIn">0</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-label">已整隊完成</div>
+        <div class="stat-num" style="color:#2563eb;" id="sLineup">0</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-label">已檢錄到位</div>
+        <div class="stat-num" style="color:#059669;" id="sRollcall">0</div>
+      </div>
+    </div>
+
+    <!-- 快速搜尋框 -->
+    <div class="search-box">
+      <input type="text" id="searchInput" class="search-bar" placeholder="🔍 輸入編號或姓名進行即時篩選..." oninput="renderTable()" />
+    </div>
+
+    <!-- 名單列表卡片 (純檢視，不可修改) -->
+    <div class="content-card">
+      <div class="view-row view-header">
+        <div>編號</div>
+        <div>姓名</div>
+        <div>報到情況</div>
+        <div style="text-align:center;">整隊</div>
+        <div style="text-align:center;">檢錄</div>
+      </div>
+
+      <div id="tableBody">
+        <div style="text-align:center; padding: 40px; color:#888;">資料同步連線中...</div>
+      </div>
+    </div>
+
+  </div>
+
+  <script>
+    const STAGES = ["第一階", "第二階", "第三階", "第四階", "第五階"];
+    const DEFAULT_GAS_URL = "https://script.google.com/macros/s/AKfycbwQnQrRL0rWlM50-KTjrx2iC8xtYTvoL9e-NL56EiDE7dU_SsgnGT-45eoY3apswwE1xA/exec";
+    const API_URL = localStorage.getItem("CIP_GAS_URL") || DEFAULT_GAS_URL;
+
+    let db = [];
+    let activeStage = 'all'; // 預設全部，可點選 '第一階' ~ '第五階'
+    let realTimeRecords = {};
+    let liveCheckins = {};
+    let lockedStages = {};
+    let rtdb = null;
+
+    // 初始化 Firebase 即時同步監聽
+    function initFirebase() {
+      if (typeof firebase !== 'undefined' && firebase.apps && firebase.apps.length) {
+        rtdb = firebase.database();
+
+        // 1. 監聽各階鎖定
+        rtdb.ref('/lockedStages').on('value', snap => {
+          lockedStages = snap.val() || {};
+          updateTabLockBadges();
+        });
+
+        // 2. 監聽整隊與檢錄 (檢錄員在 rollcall_edit.html 點擊時，此處 0.1 秒即時更新)
+        rtdb.ref('/records').on('value', snap => {
+          realTimeRecords = snap.val() || {};
+          renderTable();
+        });
+
+        // 3. 監聽報到狀態
+        rtdb.ref('/checkins').on('value', snap => {
+          liveCheckins = snap.val() || {};
+          renderTable();
+        });
+      }
+    }
+
+    // 更新階段按鈕上的鎖定標示
+    function updateTabLockBadges() {
+      const buttons = document.querySelectorAll('.stage-tab-btn');
+      buttons.forEach(btn => {
+        const text = btn.innerText.replace('🔒 ', '');
+        if (text !== '全部階數') {
+          if (lockedStages[text]) {
+            btn.classList.add('is-locked');
+            btn.innerText = `🔒 ${text}`;
+          } else {
+            btn.classList.remove('is-locked');
+            btn.innerText = text;
+          }
+        }
+      });
+    }
+
+    // 切換階段篩選
+    function switchStage(stage) {
+      activeStage = stage;
+      const buttons = document.querySelectorAll('.stage-tab-btn');
+      buttons.forEach(b => {
+        const stageName = b.innerText.replace('🔒 ', '');
+        if ((stage === 'all' && stageName === '全部階數') || stageName === stage) {
+          b.classList.add('active');
+        } else {
+          b.classList.remove('active');
+        }
+      });
+      renderTable();
+    }
+
+    // 載入基本名冊
+    async function loadData() {
+      try {
+        const res = await fetch(API_URL, {
+          method: "POST",
+          headers: { "Content-Type": "text/plain;charset=utf-8" },
+          body: JSON.stringify({ action: "getAdminData" })
+        });
+        const result = await res.json();
+        if (result.success) {
+          db = result.data;
+          renderTable();
+        }
+      } catch (err) {
+        console.warn("載入名冊失敗:", err);
+      }
+    }
+
+    // 渲染純檢視表格
+    function renderTable() {
+      const tbody = document.getElementById('tableBody');
+      const keyword = document.getElementById('searchInput').value.trim().toUpperCase();
+
+      if (!db.length) {
+        tbody.innerHTML = `<div style="text-align:center; padding:40px; color:#94a3b8;">載入名冊資料中...</div>`;
+        return;
+      }
+
+      let countTotal = 0;
+      let countCheckedIn = 0;
+      let countLineup = 0;
+      let countRollcall = 0;
+
+      let html = "";
+
+      db.forEach(r => {
+        const idNo = r[0] || '-';
+        const groupName = r[1] || '-';
+        const name = r[3] || '-';
+
+        // 階數過濾
+        if (activeStage !== 'all' && groupName !== activeStage) {
+          return;
+        }
+
+        countTotal++;
+
+        // 報到狀態
+        const hasSheetCheckin = !!(r[5] && String(r[5]).trim() !== "");
+        const hasLiveCheckin = !!(liveCheckins[idNo] && liveCheckins[idNo].checkedIn);
+        const isCheckedIn = hasSheetCheckin || hasLiveCheckin;
+
+        const rec = realTimeRecords[idNo] || {};
+        const isLineup = !!rec.lineup;
+        const isRollcall = !!rec.rollcall;
+
+        if (isCheckedIn) countCheckedIn++;
+        if (isLineup) countLineup++;
+        if (isRollcall) countRollcall++;
+
+        // 關鍵字比對
+        if (keyword !== "") {
+          const match = String(idNo).toUpperCase().includes(keyword) || 
+                        String(name).toUpperCase().includes(keyword) ||
+                        String(groupName).toUpperCase().includes(keyword);
+          if (!match) return;
+        }
+
+        const checkinHtml = isCheckedIn 
+          ? `<span class="badge-checkin-yes">🟢 已報到</span>` 
+          : `<span class="badge-checkin-no">⚪ 未報到</span>`;
+
+        // 依需求純檢視：不可點擊修改
+        const lineupHtml = isLineup 
+          ? `<span class="v-badge-done">✅ 已整隊</span>` 
+          : `<span class="v-badge-empty">⬜ 未整隊</span>`;
+
+        const rollcallHtml = isRollcall 
+          ? `<span class="v-badge-done">✅ 已檢錄</span>` 
+          : `<span class="v-badge-empty">⬜ 未檢錄</span>`;
+
+        html += `
+          <div class="view-row">
+            <div class="mobile-info-row" style="grid-column: span 3; display: flex; align-items:center; justify-content:space-between;">
+              <div style="display:flex; align-items:center; gap:12px;">
+                <span class="v-id">#${idNo}</span>
+                <span class="v-name">${name}</span>
+                ${activeStage === 'all' ? `<span style="font-size:12px; background:#eff6ff; color:#1d4ed8; padding:3px 8px; border-radius:8px;">${groupName}</span>` : ''}
+              </div>
+              <div>${checkinHtml}</div>
+            </div>
+
+            <div class="mobile-status-row" style="grid-column: span 2; display: flex; gap: 10px;">
+              <div style="flex:1;">${lineupHtml}</div>
+              <div style="flex:1;">${rollcallHtml}</div>
+            </div>
+          </div>
+        `;
+      });
+
+      document.getElementById('sTotal').innerText = countTotal;
+      document.getElementById('sCheckedIn').innerText = countCheckedIn;
+      document.getElementById('sLineup').innerText = countLineup;
+      document.getElementById('sRollcall').innerText = countRollcall;
+
+      tbody.innerHTML = html || `<div style="text-align:center; padding:35px; color:#888;">無符合條件的名單資料</div>`;
+    }
+
+    window.addEventListener('DOMContentLoaded', () => {
+      initFirebase();
+      loadData();
+    });
+  </script>
+</body>
+</html>

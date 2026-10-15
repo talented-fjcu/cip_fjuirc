@@ -1,0 +1,632 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no" />
+  <title>檢錄與整隊工作台</title>
+
+  <!-- 引入 Firebase SDK (相容模式 CDN) -->
+  <script src="https://www.gstatic.com/firebasejs/10.13.2/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.13.2/firebase-database-compat.js"></script>
+  <script src="firebase-config.js"></script>
+
+  <style>
+    * { 
+      box-sizing: border-box; 
+      -webkit-font-smoothing: antialiased; 
+    }
+    body, html { 
+      margin: 0; 
+      padding: 0; 
+      min-height: 100vh; 
+      font-family: "Microsoft JhengHei", "PingFang TC", sans-serif; 
+      background-color: #f4f6f8;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+    }
+
+    .container {
+      width: 95%;
+      max-width: 800px;
+      margin: 20px 0 60px 0;
+    }
+
+    /* 頂部導航列 (具備返回 rollcall.html 的按鈕) */
+    .top-bar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      margin-bottom: 16px;
+      flex-wrap: wrap;
+    }
+    .btn-back {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 12px 18px;
+      background: #ffffff;
+      color: #333333;
+      border: 2px solid #dddddd;
+      border-radius: 16px;
+      text-decoration: none;
+      font-weight: bold;
+      font-size: 16px;
+      box-shadow: 0 4px 10px rgba(0,0,0,0.05);
+      transition: all 0.2s;
+    }
+    .btn-back:hover {
+      background: #f0f0f0;
+      border-color: #bbb;
+    }
+
+    .current-stage-title {
+      font-size: 24px;
+      font-weight: bold;
+      color: #1a1a1a;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    /* 鎖定按鈕控制卡片 (連動報到處過號) */
+    .lock-card {
+      background: #ffffff;
+      border-radius: 24px;
+      padding: 20px 24px;
+      box-shadow: 0 10px 25px rgba(0,0,0,0.06);
+      margin-bottom: 18px;
+      border: 2px solid #e0e0e0;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 14px;
+    }
+    .lock-card.is-locked {
+      border-color: #ef4444;
+      background: #fef2f2;
+    }
+    .lock-info {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+    .lock-title {
+      font-size: 18px;
+      font-weight: bold;
+      color: #1a1a1a;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .lock-desc {
+      font-size: 13px;
+      color: #666;
+    }
+    .lock-btn {
+      padding: 14px 24px;
+      border-radius: 18px;
+      font-size: 17px;
+      font-weight: bold;
+      cursor: pointer;
+      border: none;
+      transition: all 0.2s;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .btn-to-lock {
+      background: #1976d2;
+      color: #ffffff;
+    }
+    .btn-to-lock:hover {
+      background: #1565c0;
+    }
+    .btn-to-unlock {
+      background: #dc2626;
+      color: #ffffff;
+      animation: pulse-red 2s infinite;
+    }
+    .btn-to-unlock:hover {
+      background: #b91c1c;
+    }
+
+    /* 統計小橫列 */
+    .stats-row {
+      display: flex;
+      gap: 10px;
+      margin-bottom: 16px;
+      flex-wrap: wrap;
+    }
+    .stat-pill {
+      flex: 1;
+      min-width: 90px;
+      background: #ffffff;
+      padding: 12px 14px;
+      border-radius: 16px;
+      text-align: center;
+      box-shadow: 0 4px 10px rgba(0,0,0,0.04);
+      border: 1px solid #e5e7eb;
+    }
+    .stat-pill-label {
+      font-size: 12px;
+      color: #6b7280;
+      margin-bottom: 4px;
+    }
+    .stat-pill-val {
+      font-size: 20px;
+      font-weight: bold;
+      color: #111827;
+    }
+
+    /* 搜尋與過濾 */
+    .filter-box {
+      margin-bottom: 16px;
+    }
+    .search-input {
+      width: 100%;
+      padding: 14px 18px;
+      font-size: 16px;
+      border: 2px solid #e5e7eb;
+      border-radius: 18px;
+      background: #ffffff;
+      outline: none;
+      box-shadow: 0 4px 10px rgba(0,0,0,0.03);
+    }
+    .search-input:focus {
+      border-color: #1976d2;
+    }
+
+    /* 名單清單區塊 (手機卡片化 / 平板表格通用) */
+    .table-card {
+      background: #ffffff;
+      border-radius: 24px;
+      box-shadow: 0 10px 30px rgba(0,0,0,0.07);
+      border: 1px solid #e5e7eb;
+      overflow: hidden;
+    }
+
+    /* 列表項目 */
+    .attendee-item {
+      display: grid;
+      grid-template-columns: 80px 1.4fr 1.2fr 110px 110px;
+      align-items: center;
+      padding: 16px 20px;
+      border-bottom: 1px solid #f1f5f9;
+      gap: 12px;
+      transition: background 0.15s;
+    }
+    .attendee-item:last-child {
+      border-bottom: none;
+    }
+    .attendee-item:hover {
+      background: #f8fafc;
+    }
+    .attendee-header {
+      background: #f8fafc;
+      font-weight: bold;
+      color: #475569;
+      font-size: 14px;
+      border-bottom: 2px solid #e2e8f0;
+    }
+
+    .cell-id {
+      font-weight: bold;
+      color: #1e293b;
+      font-size: 16px;
+    }
+    .cell-name {
+      font-weight: bold;
+      font-size: 18px;
+      color: #0f172a;
+    }
+    .cell-checkin {
+      font-size: 13px;
+    }
+
+    /* 報到狀態標籤 */
+    .badge-checkin-yes {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      color: #166534;
+      background: #dcfce7;
+      padding: 4px 10px;
+      border-radius: 12px;
+      font-weight: bold;
+      font-size: 12px;
+    }
+    .badge-checkin-no {
+      display: inline-flex;
+      align-items: center;
+      color: #94a3b8;
+      background: #f1f5f9;
+      padding: 4px 10px;
+      border-radius: 12px;
+      font-size: 12px;
+    }
+
+    /* 點擊切換的大按鈕 (整隊 & 檢錄：按一下打勾，再按一下取消打勾) */
+    .btn-toggle-box {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+      padding: 12px 14px;
+      border-radius: 16px;
+      font-size: 15px;
+      font-weight: bold;
+      cursor: pointer;
+      user-select: none;
+      border: 2px solid #d1d5db;
+      background: #ffffff;
+      color: #6b7280;
+      transition: all 0.18s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+    .btn-toggle-box:active {
+      transform: scale(0.96);
+    }
+    /* 整隊已打勾樣式 */
+    .btn-toggle-box.lineup-active {
+      background: #eff6ff;
+      border-color: #3b82f6;
+      color: #1d4ed8;
+      box-shadow: 0 4px 12px rgba(59, 130, 246, 0.2);
+    }
+    /* 檢錄已打勾樣式 */
+    .btn-toggle-box.rollcall-active {
+      background: #ecfdf5;
+      border-color: #10b981;
+      color: #047857;
+      box-shadow: 0 4px 12px rgba(16, 185, 129, 0.2);
+    }
+
+    /* 手機畫面彈性排版 */
+    @media (max-width: 720px) {
+      .attendee-header {
+        display: none;
+      }
+      .attendee-item {
+        display: flex;
+        flex-direction: column;
+        align-items: stretch;
+        padding: 18px 16px;
+        gap: 12px;
+        border-bottom: 2px solid #eef2f6;
+      }
+      .item-top-row {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+      }
+      .action-buttons-row {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 10px;
+        margin-top: 4px;
+      }
+      .btn-toggle-box {
+        padding: 14px 10px;
+        font-size: 16px;
+      }
+    }
+  </style>
+</head>
+<body>
+
+  <div class="container">
+    
+    <!-- 頂部導航 -->
+    <div class="top-bar">
+      <!-- 需求明確：具有回到 rollcall.html 的按鈕 -->
+      <a href="rollcall.html" class="btn-back">
+        ⬅️ 返回階段選單
+      </a>
+      <div class="current-stage-title" id="stageTitle">
+        📋 階段檢錄作業
+      </div>
+      <div style="font-size:13px; color:#2e7d32; font-weight:bold; background:#e8f5e9; padding:6px 12px; border-radius:12px;">
+        ⚡ 毫秒級同步
+      </div>
+    </div>
+
+    <!-- 鎖定控制卡片 (連動報到網頁，鎖定後該階報到顯示過號) -->
+    <div class="lock-card" id="lockCard">
+      <div class="lock-info">
+        <div class="lock-title" id="lockCardTitle">
+          <span>🔓 本階目前開放報到中</span>
+        </div>
+        <div class="lock-desc" id="lockCardDesc">
+          若檢錄即將結束，點擊鎖定後，現場門口報到掃描將直接顯示「❌ 過號」！
+        </div>
+      </div>
+      <button type="button" class="lock-btn btn-to-lock" id="btnLockToggle" onclick="toggleStageLock()">
+        🔒 鎖定本階報到
+      </button>
+    </div>
+
+    <!-- 即時統計橫列 -->
+    <div class="stats-row">
+      <div class="stat-pill">
+        <div class="stat-pill-label">總人數</div>
+        <div class="stat-pill-val" id="stTotal">0</div>
+      </div>
+      <div class="stat-pill">
+        <div class="stat-pill-label">門口已報到</div>
+        <div class="stat-pill-val" style="color:#16a34a;" id="stCheckedIn">0</div>
+      </div>
+      <div class="stat-pill">
+        <div class="stat-pill-label">已整隊</div>
+        <div class="stat-pill-val" style="color:#2563eb;" id="stLineup">0</div>
+      </div>
+      <div class="stat-pill">
+        <div class="stat-pill-label">已檢錄</div>
+        <div class="stat-pill-val" style="color:#059669;" id="stRollcall">0</div>
+      </div>
+    </div>
+
+    <!-- 關鍵字過濾 -->
+    <div class="filter-box">
+      <input type="text" id="searchKeyword" class="search-input" placeholder="🔍 輸入編號或姓名快速搜尋..." oninput="renderList()" />
+    </div>
+
+    <!-- 名單列表卡片 -->
+    <div class="table-card">
+      <!-- 標頭 -->
+      <div class="attendee-item attendee-header">
+        <div>編號</div>
+        <div>姓名</div>
+        <div>報到情況</div>
+        <div style="text-align:center;">整隊</div>
+        <div style="text-align:center;">檢錄</div>
+      </div>
+
+      <!-- 資料列容器 -->
+      <div id="attendeeList">
+        <div style="text-align:center; padding: 40px; color:#888;">資料載入中...</div>
+      </div>
+    </div>
+
+  </div>
+
+  <script>
+    // 取得當前網址指定之階數
+    const urlParams = new URLSearchParams(window.location.search);
+    const currentStage = urlParams.get('stage') || '第一階';
+
+    const DEFAULT_GAS_URL = "https://script.google.com/macros/s/AKfycbwQnQrRL0rWlM50-KTjrx2iC8xtYTvoL9e-NL56EiDE7dU_SsgnGT-45eoY3apswwE1xA/exec";
+    const API_URL = localStorage.getItem("CIP_GAS_URL") || DEFAULT_GAS_URL;
+
+    let db = [];                 // 完整名單
+    let stageAttendees = [];     // 當前階段名單
+    let realTimeRecords = {};    // 整隊與檢錄即時記錄 { [idNo]: { lineup: bool, rollcall: bool } }
+    let liveCheckins = {};       // 門口報到即時推播 { [idNo]: { checkedIn: bool, time: string } }
+    let isStageLocked = false;
+    let rtdb = null;
+
+    document.getElementById('stageTitle').innerText = `📋 【${currentStage}】檢錄與整隊`;
+
+    // 初始化 Firebase
+    function initFirebase() {
+      if (typeof firebase !== 'undefined' && firebase.apps && firebase.apps.length) {
+        rtdb = firebase.database();
+
+        // 1. 監聽當前階數的鎖定狀態
+        rtdb.ref(`/lockedStages/${currentStage}`).on('value', snap => {
+          isStageLocked = !!snap.val();
+          updateLockCardUI();
+        });
+
+        // 2. 監聽整隊與檢錄狀態
+        rtdb.ref('/records').on('value', snap => {
+          realTimeRecords = snap.val() || {};
+          renderList();
+        });
+
+        // 3. 監聽門口即時報到推播
+        rtdb.ref('/checkins').on('value', snap => {
+          liveCheckins = snap.val() || {};
+          renderList();
+        });
+      }
+    }
+
+    // 鎖定狀態切換 (連動 index.html 報到過號)
+    function toggleStageLock() {
+      const willLock = !isStageLocked;
+      const confirmMsg = willLock 
+        ? `確定要「鎖定【${currentStage}】」嗎？\n鎖定後，門口報到處若掃描到此階受獎人，將無法報到並直接顯示「❌ 過號」！`
+        : `確定要「解除鎖定【${currentStage}】」嗎？\n解除後現場將恢復允許此階段正常報到。`;
+
+      if (confirm(confirmMsg)) {
+        if (rtdb) {
+          rtdb.ref(`/lockedStages/${currentStage}`).set(willLock);
+        } else {
+          isStageLocked = willLock;
+          updateLockCardUI();
+        }
+      }
+    }
+
+    // 更新鎖定按鈕卡片 UI
+    function updateLockCardUI() {
+      const card = document.getElementById('lockCard');
+      const title = document.getElementById('lockCardTitle');
+      const desc = document.getElementById('lockCardDesc');
+      const btn = document.getElementById('btnLockToggle');
+
+      if (isStageLocked) {
+        card.className = "lock-card is-locked";
+        title.innerHTML = `<span style="color:#b91c1c;">🔒 本階已鎖定截止（過號中）</span>`;
+        desc.innerText = `門口報到處若掃描此階名單將會顯示「❌ 過號」阻擋報到。`;
+        btn.className = "lock-btn btn-to-unlock";
+        btn.innerHTML = `🔓 點此解除鎖定`;
+      } else {
+        card.className = "lock-card";
+        title.innerHTML = `<span style="color:#1e293b;">🔓 本階開放報到中</span>`;
+        desc.innerText = `若檢錄即將結束，點擊鎖定後，現場門口報到掃描將直接顯示「❌ 過號」！`;
+        btn.className = "lock-btn btn-to-lock";
+        btn.innerHTML = `🔒 鎖定本階報到`;
+      }
+    }
+
+    // 切換「整隊」狀態 (按一下打勾，再按一下取消打勾)
+    function toggleLineup(idNo) {
+      const current = realTimeRecords[idNo] || {};
+      const newStatus = !current.lineup;
+
+      // 樂觀更新 (UI 瞬間切換)
+      realTimeRecords[idNo] = {
+        ...current,
+        lineup: newStatus,
+        lineupTime: newStatus ? new Date().toLocaleTimeString('zh-TW', { hour12: false }) : ""
+      };
+      renderList();
+
+      // 寫入 Firebase 即時庫 (廣播給所有人)
+      if (rtdb) {
+        rtdb.ref(`/records/${idNo}`).update({
+          lineup: newStatus,
+          lineupTime: realTimeRecords[idNo].lineupTime
+        });
+      }
+    }
+
+    // 切換「檢錄」狀態 (按一下打勾，再按一下取消打勾)
+    function toggleRollcall(idNo) {
+      const current = realTimeRecords[idNo] || {};
+      const newStatus = !current.rollcall;
+
+      // 樂觀更新 (UI 瞬間切換)
+      realTimeRecords[idNo] = {
+        ...current,
+        rollcall: newStatus,
+        rollcallTime: newStatus ? new Date().toLocaleTimeString('zh-TW', { hour12: false }) : ""
+      };
+      renderList();
+
+      // 寫入 Firebase 即時庫 (廣播給所有人)
+      if (rtdb) {
+        rtdb.ref(`/records/${idNo}`).update({
+          rollcall: newStatus,
+          rollcallTime: realTimeRecords[idNo].rollcallTime
+        });
+      }
+    }
+
+    // 載入名冊資料
+    async function loadAttendeeData() {
+      try {
+        const res = await fetch(API_URL, {
+          method: "POST",
+          headers: { "Content-Type": "text/plain;charset=utf-8" },
+          body: JSON.stringify({ action: "getAdminData" })
+        });
+        const result = await res.json();
+        if (result.success) {
+          db = result.data;
+          // 篩選出屬於 currentStage 的學員
+          stageAttendees = db.filter(r => r[1] && String(r[1]).trim() === currentStage);
+          renderList();
+        }
+      } catch (err) {
+        console.error("載入失敗:", err);
+      }
+    }
+
+    // 渲染名單列表
+    function renderList() {
+      const container = document.getElementById('attendeeList');
+      const keyword = document.getElementById('searchKeyword').value.trim().toUpperCase();
+
+      if (!stageAttendees.length) {
+        container.innerHTML = `<div style="text-align:center; padding:40px; color:#94a3b8;">此階段尚無名單資料</div>`;
+        return;
+      }
+
+      let countTotal = stageAttendees.length;
+      let countCheckedIn = 0;
+      let countLineup = 0;
+      let countRollcall = 0;
+
+      let html = "";
+
+      stageAttendees.forEach(r => {
+        const idNo = r[0] || '-';
+        const name = r[3] || '-';
+        
+        // 報到狀態 (優先採用 Firebase 即時推播，次為試算表原始欄位 r[5])
+        const hasSheetCheckin = !!(r[5] && String(r[5]).trim() !== "");
+        const hasLiveCheckin = !!(liveCheckins[idNo] && liveCheckins[idNo].checkedIn);
+        const isCheckedIn = hasSheetCheckin || hasLiveCheckin;
+
+        const rec = realTimeRecords[idNo] || {};
+        const isLineup = !!rec.lineup;
+        const isRollcall = !!rec.rollcall;
+
+        if (isCheckedIn) countCheckedIn++;
+        if (isLineup) countLineup++;
+        if (isRollcall) countRollcall++;
+
+        // 搜尋比對 (編號或姓名)
+        if (keyword !== "") {
+          const match = String(idNo).toUpperCase().includes(keyword) || String(name).toUpperCase().includes(keyword);
+          if (!match) return;
+        }
+
+        const checkinBadge = isCheckedIn 
+          ? `<span class="badge-checkin-yes">🟢 已報到</span>`
+          : `<span class="badge-checkin-no">⚪ 未報到</span>`;
+
+        const lineupClass = isLineup ? "btn-toggle-box lineup-active" : "btn-toggle-box";
+        const lineupText = isLineup ? "✅ 已整隊" : "⬜ 整隊";
+
+        const rollcallClass = isRollcall ? "btn-toggle-box rollcall-active" : "btn-toggle-box";
+        const rollcallText = isRollcall ? "✅ 已檢錄" : "⬜ 檢錄";
+
+        html += `
+          <div class="attendee-item">
+            <!-- 手機版第一列：編號、姓名、報到狀態 -->
+            <div class="item-top-row" style="grid-column: span 3; display: flex; align-items:center; justify-content:space-between;">
+              <div style="display:flex; align-items:center; gap:12px;">
+                <span class="cell-id">#${idNo}</span>
+                <span class="cell-name">${name}</span>
+              </div>
+              <div class="cell-checkin">
+                ${checkinBadge}
+              </div>
+            </div>
+
+            <!-- 手機版第二列：整隊與檢錄按鈕 -->
+            <div class="action-buttons-row" style="grid-column: span 2; display: flex; gap: 10px;">
+              <button type="button" class="${lineupClass}" style="flex:1;" onclick="toggleLineup('${idNo}')">
+                ${lineupText}
+              </button>
+              <button type="button" class="${rollcallClass}" style="flex:1;" onclick="toggleRollcall('${idNo}')">
+                ${rollcallText}
+              </button>
+            </div>
+          </div>
+        `;
+      });
+
+      // 更新統計數值
+      document.getElementById('stTotal').innerText = countTotal;
+      document.getElementById('stCheckedIn').innerText = countCheckedIn;
+      document.getElementById('stLineup').innerText = countLineup;
+      document.getElementById('stRollcall').innerText = countRollcall;
+
+      container.innerHTML = html || `<div style="text-align:center; padding:35px; color:#888;">無符合搜尋關鍵字「${keyword}」的名單</div>`;
+    }
+
+    // 啟動
+    window.addEventListener('DOMContentLoaded', () => {
+      initFirebase();
+      loadAttendeeData();
+    });
+  </script>
+</body>
+</html>
