@@ -610,19 +610,15 @@
         if (matchKeyword && matchStatus && matchGroup && matchReward) {
           countFiltered++;
 
-          const timeOnly = checkInTime ? (checkInTime.split(' ')[1] || checkInTime) : '';
-
           let tableStatusBadge = "";
           let cardStatusBadge = "";
 
           if (isLate) {
-            const cleanTime = checkInTime.replace('過號,', '').trim();
-            const timePart = cleanTime.split(' ')[1] || cleanTime;
-            tableStatusBadge = `<span class="badge-status-yes" style="background:#fef3c7; color:#92400e; border:1px solid #fde68a;">⚠️ 過號報到<br><small style="font-size:11px;">${timePart} (移至第6階)</small></span>`;
-            cardStatusBadge = `<span class="badge-status-yes" style="font-size:12px; padding:3px 10px; background:#fef3c7; color:#92400e; border:1px solid #fde68a;">⚠️ 過號報到 <small>${timePart}</small></span>`;
+            tableStatusBadge = `<span class="badge-status-yes" style="background:#fef3c7; color:#92400e; border:1px solid #fde68a; white-space:nowrap;">過號報到(移至第6階)</span>`;
+            cardStatusBadge = `<span class="badge-status-yes" style="font-size:12px; padding:3px 10px; background:#fef3c7; color:#92400e; border:1px solid #fde68a;">過號報到(移至第6階)</span>`;
           } else if (isCheckedIn) {
-            tableStatusBadge = `<span class="badge-status-yes">✅ 已報到<br><small style="font-size:11px; color:#555;">${timeOnly}</small></span>`;
-            cardStatusBadge = `<span class="badge-status-yes" style="font-size:12px; padding:3px 10px;">✅ 已報到 <small style="color:#555;">${timeOnly}</small></span>`;
+            tableStatusBadge = `<span class="badge-status-yes">已報到</span>`;
+            cardStatusBadge = `<span class="badge-status-yes" style="font-size:12px; padding:3px 10px;">已報到</span>`;
           } else {
             tableStatusBadge = `<span class="badge-status-no">未報到</span>`;
             cardStatusBadge = `<span class="badge-status-no" style="font-size:12px; padding:3px 10px;">未報到</span>`;
