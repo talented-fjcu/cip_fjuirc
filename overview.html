@@ -301,9 +301,9 @@
       <div class="header-title">
         <span>📊 大會即時綜合檢視看板</span>
       </div>
-      <div class="read-only-badge">
+      <div class="read-only-badge" id="syncStatusBadge">
         <span class="live-dot"></span>
-        <span>純檢視模式 ｜ 0.1s 即時連動</span>
+        <span id="syncStatusText">純檢視模式 ｜ 0.1s 自動更新中</span>
       </div>
     </div>
 
@@ -373,13 +373,29 @@
     let liveCheckins = {};
     let lockedStages = {};
     let rtdb = null;
+    let isLoadingData = false;
 
     // 初始化 Firebase 即時同步監聽
     function initFirebase() {
       if (typeof firebase !== 'undefined' && firebase.apps && firebase.apps.length) {
         rtdb = firebase.database();
 
-        // 1. 監聽各階鎖定
+        // 監聽 Firebase 網路連線狀態
+        rtdb.ref('.info/connected').on('value', snap => {
+          const isConnected = !!snap.val();
+          const dot = document.querySelector('.live-dot');
+          const txt = document.getElementById('syncStatusText');
+          if (dot && txt) {
+            if (isConnected) {
+              dot.style.background = "#10b981";
+            } else {
+              dot.style.background = "#f59e0b";
+              txt.innerText = "純檢視模式 ｜ 連線恢復中...";
+            }
+          }
+        });
+
+        // 1. 監聽各階鎖定狀態
         rtdb.ref('/lockedStages').on('value', snap => {
           lockedStages = snap.val() || {};
           updateTabLockBadges();
@@ -391,7 +407,7 @@
           renderTable();
         });
 
-        // 3. 監聽報到狀態
+        // 3. 監聽門口報到狀態推播
         rtdb.ref('/checkins').on('value', snap => {
           liveCheckins = snap.val() || {};
           renderTable();
@@ -403,7 +419,7 @@
     function updateTabLockBadges() {
       const buttons = document.querySelectorAll('.stage-tab-btn');
       buttons.forEach(btn => {
-        const text = btn.innerText.replace('🔒 ', '');
+        const text = btn.innerText.replace('🔒 ', '').trim();
         if (text !== '全部階數') {
           if (lockedStages[text]) {
             btn.classList.add('is-locked');
@@ -421,7 +437,7 @@
       activeStage = stage;
       const buttons = document.querySelectorAll('.stage-tab-btn');
       buttons.forEach(b => {
-        const stageName = b.innerText.replace('🔒 ', '');
+        const stageName = b.innerText.replace('🔒 ', '').trim();
         if ((stage === 'all' && stageName === '全部階數') || stageName === stage) {
           b.classList.add('active');
         } else {
@@ -431,8 +447,10 @@
       renderTable();
     }
 
-    // 載入基本名冊
-    async function loadData() {
+    // 載入基本名冊 (支援背景定時自動刷新)
+    async function loadData(isBackground = false) {
+      if (isLoadingData) return;
+      isLoadingData = true;
       try {
         const res = await fetch(API_URL, {
           method: "POST",
@@ -440,12 +458,19 @@
           body: JSON.stringify({ action: "getAdminData" })
         });
         const result = await res.json();
-        if (result.success) {
+        if (result.success && Array.isArray(result.data)) {
           db = result.data;
           renderTable();
+          const nowStr = new Date().toLocaleTimeString('zh-TW', { hour12: false });
+          const txt = document.getElementById('syncStatusText');
+          if (txt) {
+            txt.innerText = `純檢視模式 ｜ 0.1s 自動同步中 (${nowStr})`;
+          }
         }
       } catch (err) {
         console.warn("載入名冊失敗:", err);
+      } finally {
+        isLoadingData = false;
       }
     }
 
@@ -467,23 +492,25 @@
       let html = "";
 
       db.forEach(r => {
-        const idNo = r[0] || '-';
-        const groupName = r[1] || '-';
-        const name = r[3] || '-';
+        const idNo = (r[0] !== undefined && r[0] !== null) ? String(r[0]).trim() : '-';
+        const groupName = (r[1] !== undefined && r[1] !== null) ? String(r[1]).trim() : '-';
+        const name = (r[3] !== undefined && r[3] !== null) ? String(r[3]).trim() : '-';
 
-        // 階數過濾
+        // 階數過濾 (包含 trim 比對)
         if (activeStage !== 'all' && groupName !== activeStage) {
           return;
         }
 
         countTotal++;
 
-        // 報到狀態
+        // 報到狀態 (支援 Google Sheets 與 Firebase 即時雙軌比對)
         const hasSheetCheckin = !!(r[5] && String(r[5]).trim() !== "");
-        const hasLiveCheckin = !!(liveCheckins[idNo] && liveCheckins[idNo].checkedIn);
+        const live = liveCheckins[idNo] || liveCheckins[idNo.toUpperCase()] || {};
+        const hasLiveCheckin = !!live.checkedIn;
         const isCheckedIn = hasSheetCheckin || hasLiveCheckin;
 
-        const rec = realTimeRecords[idNo] || {};
+        // 整隊與檢錄狀態 (比對 idNo)
+        const rec = realTimeRecords[idNo] || realTimeRecords[idNo.toUpperCase()] || {};
         const isLineup = !!rec.lineup;
         const isRollcall = !!rec.rollcall;
 
@@ -542,6 +569,11 @@
     window.addEventListener('DOMContentLoaded', () => {
       initFirebase();
       loadData();
+
+      // 自動背景輪詢：每 3 秒自動向試算表同步一次，完全不需手動重新整理
+      setInterval(() => {
+        loadData(true);
+      }, 3000);
     });
   </script>
 </body>

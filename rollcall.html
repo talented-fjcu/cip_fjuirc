@@ -419,6 +419,10 @@
       renderStages();
       if (checkAuth()) {
         loadAttendeeData();
+        // 每 4 秒自動背景同步名冊最新進度
+        setInterval(() => {
+          loadAttendeeData();
+        }, 4000);
       }
     });
   </script>

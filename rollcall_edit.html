@@ -555,15 +555,16 @@
       let html = "";
 
       stageAttendees.forEach(r => {
-        const idNo = r[0] || '-';
-        const name = r[3] || '-';
+        const idNo = (r[0] !== undefined && r[0] !== null) ? String(r[0]).trim() : '-';
+        const name = (r[3] !== undefined && r[3] !== null) ? String(r[3]).trim() : '-';
         
         // 報到狀態 (優先採用 Firebase 即時推播，次為試算表原始欄位 r[5])
         const hasSheetCheckin = !!(r[5] && String(r[5]).trim() !== "");
-        const hasLiveCheckin = !!(liveCheckins[idNo] && liveCheckins[idNo].checkedIn);
+        const live = liveCheckins[idNo] || liveCheckins[idNo.toUpperCase()] || {};
+        const hasLiveCheckin = !!live.checkedIn;
         const isCheckedIn = hasSheetCheckin || hasLiveCheckin;
 
-        const rec = realTimeRecords[idNo] || {};
+        const rec = realTimeRecords[idNo] || realTimeRecords[idNo.toUpperCase()] || {};
         const isLineup = !!rec.lineup;
         const isRollcall = !!rec.rollcall;
 
@@ -626,6 +627,11 @@
     window.addEventListener('DOMContentLoaded', () => {
       initFirebase();
       loadAttendeeData();
+
+      // 每 4 秒自動背景同步試算表最新名冊
+      setInterval(() => {
+        loadAttendeeData();
+      }, 4000);
     });
   </script>
 </body>
