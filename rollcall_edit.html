@@ -352,9 +352,72 @@
         font-size: 15px;
       }
     }
+
+    /* 密碼防護彈窗 */
+    #pwdModal {
+      display: none;
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,0.65);
+      backdrop-filter: blur(4px);
+      z-index: 1000;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+    }
+    .modal-box {
+      background: #fff;
+      padding: 28px 24px;
+      border-radius: 24px;
+      max-width: 400px;
+      width: 100%;
+      text-align: center;
+      box-shadow: 0 20px 40px rgba(0,0,0,0.2);
+    }
+    .pin-input {
+      width: 100%;
+      padding: 14px;
+      font-size: 24px;
+      text-align: center;
+      letter-spacing: 10px;
+      border: 2px solid #ddd;
+      border-radius: 14px;
+      margin: 18px 0;
+      outline: none;
+      box-sizing: border-box;
+    }
+    .pin-input:focus {
+      border-color: #1976d2;
+    }
+    .pin-submit-btn {
+      width: 100%;
+      padding: 14px;
+      background: #1976d2;
+      color: #fff;
+      border: none;
+      border-radius: 14px;
+      font-size: 18px;
+      font-weight: bold;
+      cursor: pointer;
+      box-shadow: 0 4px 12px rgba(25,118,210,0.3);
+    }
+    .pin-submit-btn:hover {
+      background: #1565c0;
+    }
   </style>
 </head>
 <body>
+
+  <!-- 密碼輸入彈窗 -->
+  <div id="pwdModal">
+    <div class="modal-box">
+      <h3 style="margin-top:0;">🔐 請輸入檢錄授權密碼</h3>
+      <div style="font-size:14px; color:#666;">請輸入 8 位數密碼以開啟檢錄編輯功能</div>
+      <input type="password" id="pinInput" class="pin-input" maxlength="20" placeholder="••••••••" autocomplete="off" />
+      <button class="pin-submit-btn" onclick="verifyPin()">解鎖進入</button>
+      <div id="pinError" style="color:#d32f2f; font-size:13px; margin-top:10px; display:none;">密碼錯誤，請重新輸入</div>
+    </div>
+  </div>
 
   <div class="container">
     
@@ -770,15 +833,53 @@
       container.innerHTML = html || `<div style="text-align:center; padding:35px; color:#888;">無符合搜尋關鍵字「${keyword}」的名單</div>`;
     }
 
-    // 啟動
-    window.addEventListener('DOMContentLoaded', () => {
-      initFirebase();
-      loadAttendeeData();
+    const DEFAULT_PIN = "64152195";
+    let syncIntervalId = null;
 
-      // 每 4 秒自動背景同步試算表最新名冊
-      setInterval(() => {
+    function startAutoSync() {
+      if (syncIntervalId) return;
+      loadAttendeeData();
+      syncIntervalId = setInterval(() => {
         loadAttendeeData();
       }, 4000);
+    }
+
+    function checkAuth() {
+      const isAuthed = sessionStorage.getItem("CIP_ROLLCALL_AUTH");
+      if (isAuthed === "true") return true;
+      const modal = document.getElementById('pwdModal');
+      modal.style.display = 'flex';
+      const inp = document.getElementById('pinInput');
+      if (inp) {
+        inp.value = '';
+        inp.focus();
+        inp.onkeydown = e => { if (e.key === 'Enter') verifyPin(); };
+      }
+      return false;
+    }
+
+    function verifyPin() {
+      const pin = document.getElementById('pinInput').value.trim();
+      if (pin === DEFAULT_PIN) {
+        sessionStorage.setItem("CIP_ROLLCALL_AUTH", "true");
+        document.getElementById('pwdModal').style.display = 'none';
+        initFirebase();
+        startAutoSync();
+      } else {
+        const err = document.getElementById('pinError');
+        err.style.display = 'block';
+        const inp = document.getElementById('pinInput');
+        inp.value = '';
+        inp.focus();
+      }
+    }
+
+    // 啟動
+    window.addEventListener('DOMContentLoaded', () => {
+      if (checkAuth()) {
+        initFirebase();
+        startAutoSync();
+      }
     });
   </script>
 </body>

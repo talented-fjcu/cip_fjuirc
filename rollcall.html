@@ -281,12 +281,12 @@
     </div>
   </div>
 
-  <!-- 密碼輸入彈窗 (預留未來開啟) -->
+  <!-- 密碼輸入彈窗 -->
   <div id="pwdModal">
     <div class="modal-box">
       <h3 style="margin-top:0;">🔐 請輸入檢錄授權密碼</h3>
-      <div style="font-size:14px; color:#666;">請輸入 5 位數密碼以開啟檢錄功能</div>
-      <input type="password" id="pinInput" class="pin-input" maxlength="5" placeholder="•••••" />
+      <div style="font-size:14px; color:#666;">請輸入 8 位數密碼以開啟檢錄功能</div>
+      <input type="password" id="pinInput" class="pin-input" maxlength="20" placeholder="••••••••" autocomplete="off" />
       <button class="pin-submit-btn" onclick="verifyPin()">解鎖進入</button>
       <div id="pinError" style="color:#d32f2f; font-size:13px; margin-top:10px; display:none;">密碼錯誤，請重新輸入</div>
     </div>
@@ -296,9 +296,10 @@
     // =========================================================================
     // 設定區
     // =========================================================================
-    // 密碼設定開關：目前依需求先設為 false，未來要開改為 true 並設定 PIN 即可！
-    const REQUIRE_PASSWORD = false; 
-    const DEFAULT_PIN = "12345";
+    // 密碼設定開關：已依指示啟用，密碼為 64152195
+    const REQUIRE_PASSWORD = true; 
+    const DEFAULT_PIN = "64152195";
+    let syncIntervalId = null;
 
     const DEFAULT_STAGES = ["第1階", "第2階", "第3階", "第4階", "第5階", "第6階"];
 
@@ -342,12 +343,27 @@
     let realTimeRecords = {};
     let rtdb = null;
 
+    function startAutoSync() {
+      if (syncIntervalId) return;
+      loadAttendeeData();
+      syncIntervalId = setInterval(() => {
+        loadAttendeeData();
+      }, 4000);
+    }
+
     // 檢查密碼授權
     function checkAuth() {
       if (!REQUIRE_PASSWORD) return true;
       const isAuthed = sessionStorage.getItem("CIP_ROLLCALL_AUTH");
       if (isAuthed === "true") return true;
-      document.getElementById('pwdModal').style.display = 'flex';
+      const modal = document.getElementById('pwdModal');
+      modal.style.display = 'flex';
+      const inp = document.getElementById('pinInput');
+      if (inp) {
+        inp.value = '';
+        inp.focus();
+        inp.onkeydown = e => { if (e.key === 'Enter') verifyPin(); };
+      }
       return false;
     }
 
@@ -357,8 +373,13 @@
         sessionStorage.setItem("CIP_ROLLCALL_AUTH", "true");
         document.getElementById('pwdModal').style.display = 'none';
         renderStages();
+        startAutoSync();
       } else {
-        document.getElementById('pinError').style.display = 'block';
+        const err = document.getElementById('pinError');
+        err.style.display = 'block';
+        const inp = document.getElementById('pinInput');
+        inp.value = '';
+        inp.focus();
       }
     }
 
@@ -473,11 +494,7 @@
       initFirebase();
       renderStages();
       if (checkAuth()) {
-        loadAttendeeData();
-        // 每 4 秒自動背景同步名冊最新進度
-        setInterval(() => {
-          loadAttendeeData();
-        }, 4000);
+        startAutoSync();
       }
     });
   </script>
