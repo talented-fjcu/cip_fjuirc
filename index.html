@@ -479,6 +479,26 @@
       });
     }
 
+    // 推播日誌至 Firebase Realtime Database (/logs)
+    function pushFirebaseLog(actionType, idNo, name, groupName, result, note) {
+      if (rtdb) {
+        try {
+          rtdb.ref('/logs').push({
+            timestamp: new Date().toISOString(),
+            timeStr: new Date().toLocaleTimeString('zh-TW', { hour12: false }),
+            actionType: actionType || '',
+            idNo: idNo || '',
+            name: name || '',
+            groupName: groupName || '',
+            result: result || '',
+            note: note || ''
+          });
+        } catch (e) {
+          console.warn("Firebase log push failed", e);
+        }
+      }
+    }
+
     // =========================================================================
     // API 呼叫與報到處理
     // =========================================================================
@@ -555,6 +575,7 @@
           const idNoEl = document.getElementById('resIdNo');
           idNoEl.innerHTML = `編號：${res.idNo || ''} ｜ 組別：${res.groupName}<br><span style="color:#b91c1c; font-size:16px; font-weight:bold;">⚠️ 此階段檢錄已鎖定截止，請洽大會服務台！</span>`;
 
+          pushFirebaseLog("一般報到", res.idNo, res.name, res.groupName, "過號攔截", "此階段檢錄已鎖定截止");
           playWarningTone();
           setTimeout(resetUI, 5000);
           return;
@@ -567,6 +588,8 @@
             document.getElementById('resTitle').style.color = "#2e7d32";
             playBeep();
 
+            pushFirebaseLog("一般報到", res.idNo, res.name, res.groupName, "報到成功", "完成門口掃描報到");
+
             // 即時推播報到狀態給檢錄與綜合看板
             if (rtdb && res.idNo) {
               rtdb.ref(`/checkins/${res.idNo}`).set({
@@ -578,6 +601,7 @@
             document.getElementById('resIcon').innerText = "⚠️";
             document.getElementById('resTitle').innerText = "重複報到";
             document.getElementById('resTitle').style.color = "#e65100";
+            pushFirebaseLog("一般報到", res.idNo, res.name, res.groupName, "重複報到", "先前已完成報到");
           }
           
           // 僅顯示 姓名 與 編號 (依指示不顯示組別、獎勵項目、交通費)
@@ -602,6 +626,7 @@
           nameEl.innerText = "名單中無此身分證字號，請工作人員再次核對！";
           
           document.getElementById('resIdNo').innerText = "";
+          pushFirebaseLog("一般報到", "", "", "", "查無資料", "掃描身分證不存在於名冊");
           setTimeout(resetUI, 4000);
         }
       } catch (err) {

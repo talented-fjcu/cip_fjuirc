@@ -31,6 +31,8 @@ function doPost(e) {
       return jsonResponse(processWalkIn(request.idNumber));
     } else if (action === "getAdminData") {
       return jsonResponse(getAdminData());
+    } else if (action === "recordLog") {
+      return jsonResponse(recordCustomLog(request.logData));
     }
 
     return jsonResponse({ success: false, error: "未知的請求動作 (Unknown action)" });
@@ -45,7 +47,7 @@ function doPost(e) {
 function doGet(e) {
   try {
     const action = e.parameter ? e.parameter.action : "";
-    if (action === "getAdminData" || action === "processScan" || action === "processWalkIn") {
+    if (action === "getAdminData" || action === "processScan" || action === "processWalkIn" || action === "recordLog") {
       return jsonResponse({ success: false, error: "安全性限制：此動作僅支援 POST 請求" });
     }
 
@@ -65,6 +67,7 @@ function doGet(e) {
  */
 function processScan(idNumber, lockedStages) {
   if (!idNumber) {
+    appendLog("一般報到", "", "", "", "", "失敗", "身分證字號為空");
     return { status: "not_found", message: "身分證字號不可為空" };
   }
 
@@ -96,6 +99,7 @@ function processScan(idNumber, lockedStages) {
 
       // 檢查此階是否已鎖定截止 (過號防護)
       if (lockedStages && Array.isArray(lockedStages) && lockedStages.indexOf(groupName) !== -1) {
+        appendLog("一般報到", idNo, name, groupName, cleanId, "過號攔截", "此階段(" + groupName + ")已截止鎖定", ss);
         return {
           status: "locked",
           idNo: idNo,
@@ -108,6 +112,7 @@ function processScan(idNumber, lockedStages) {
 
       // 如果已經有報到時間，代表重複掃描
       if (checkInTime !== "") {
+        appendLog("一般報到", idNo, name, groupName, cleanId, "重複報到", "先前已於 " + checkInTime + " 完成報到", ss);
         return {
           status: "already",
           idNo: idNo,
@@ -126,6 +131,8 @@ function processScan(idNumber, lockedStages) {
       sheet.getRange(i + 1, 6).setValue(nowStr);
       SpreadsheetApp.flush();
 
+      appendLog("一般報到", idNo, name, groupName, cleanId, "報到成功", "完成門口掃描報到", ss);
+
       return {
         status: "success",
         idNo: idNo,
@@ -139,6 +146,7 @@ function processScan(idNumber, lockedStages) {
   }
 
   // 找不到該身分證
+  appendLog("一般報到", "", "", "", cleanId, "查無資料", "掃描身分證不存在於工作表1名冊", ss);
   return { status: "not_found" };
 }
 
@@ -192,6 +200,7 @@ function getAdminData() {
  */
 function processWalkIn(idNumber) {
   if (!idNumber) {
+    appendLog("臨時報到", "", "", "", "", "失敗", "身分證字號為空");
     return { status: "not_found", message: "身分證字號不可為空" };
   }
 
@@ -202,6 +211,7 @@ function processWalkIn(idNumber) {
   try {
     lock.waitLock(10000);
   } catch (e) {
+    appendLog("臨時報到", "", "", "", cleanId, "系統忙碌", "取得腳本鎖定超時");
     return { status: "error", message: "系統忙碌中，請稍後再試" };
   }
 
@@ -217,6 +227,7 @@ function processWalkIn(idNumber) {
       const row = data1[i];
       const targetId = row[2] ? row[2].toString().trim().toUpperCase() : "";
       if (targetId === cleanId) {
+        appendLog("臨時報到", row[0], row[3], row[1], cleanId, "重複新增攔截", "此人已在名冊中(編號:" + row[0] + ")", ss);
         return {
           status: "already_exists",
           message: "此身分證字號已在名冊中，請勿重複新增！",
@@ -231,6 +242,7 @@ function processWalkIn(idNumber) {
     // 2. 查「總表」：取得母檔資料
     const masterSheet = ss.getSheetByName("總表");
     if (!masterSheet) {
+      appendLog("臨時報到", "", "", "", cleanId, "系統錯誤", "試算表中找不到名為『總表』的分頁", ss);
       return { status: "error", message: "試算表中找不到名為『總表』的工作表分頁，請確認分頁名稱！" };
     }
     const masterData = masterSheet.getDataRange().getValues();
@@ -256,6 +268,7 @@ function processWalkIn(idNumber) {
 
     // 若總表找不到該身分證
     if (!foundRecord) {
+      appendLog("臨時報到", "", "", "", cleanId, "查無總表資料", "比對總表母檔失敗，查無此身分證", ss);
       return { status: "not_found", message: "總表無此人資料，請洽大會服務台！" };
     }
 
@@ -304,6 +317,8 @@ function processWalkIn(idNumber) {
     sheet1.appendRow(newRow);
     SpreadsheetApp.flush();
 
+    appendLog("臨時報到", newIdNo, foundRecord.name, "第6階", cleanId, "成功派號報到", "自動配發 " + newIdNo + "，總表資料匯入完成", ss);
+
     return {
       status: "success",
       message: "臨時報到成功！已派發【第6階】號碼牌",
@@ -316,9 +331,73 @@ function processWalkIn(idNumber) {
       checkInTime: nowStr
     };
   } catch (err) {
+    appendLog("臨時報到", "", "", "", cleanId, "執行例外", err.toString());
     return { status: "error", message: err.toString() };
   } finally {
     lock.releaseLock();
+  }
+}
+
+/**
+ * 處理來自前端自訂日誌寫入 (檢錄作業、整隊作業、階段鎖定等)
+ */
+function recordCustomLog(logData) {
+  if (!logData) return { success: false, error: "缺少日誌資料" };
+  appendLog(
+    logData.actionType,
+    logData.idNo,
+    logData.name,
+    logData.groupName,
+    logData.idNumber,
+    logData.result,
+    logData.note
+  );
+  return { success: true };
+}
+
+/**
+ * 寫入系統日誌 (Log)
+ * @param {string} actionType 動作類型 (一般報到 / 臨時報到 / 檢錄作業 / 整隊作業 / 階段鎖定)
+ * @param {string} idNo 編號 (如 A-01, F-01)
+ * @param {string} name 姓名
+ * @param {string} groupName 組別 (如 第1階)
+ * @param {string} idNumber 身分證字號
+ * @param {string} result 執行結果 (報到成功 / 重複報到 / 過號攔截 / 查無資料 / 完成整隊 等)
+ * @param {string} note 備註詳情
+ * @param {GoogleAppsScript.Spreadsheet.Spreadsheet} [optSs] 可選的 Spreadsheet 實例
+ */
+function appendLog(actionType, idNo, name, groupName, idNumber, result, note, optSs) {
+  try {
+    const ss = optSs || SpreadsheetApp.openById(SPREADSHEET_ID);
+    let logSheet = ss.getSheetByName("log");
+    
+    // 若不存在「log」工作表分頁，自動建立並格式化表頭
+    if (!logSheet) {
+      logSheet = ss.insertSheet("log");
+      const headers = ["時間", "動作類型", "編號", "姓名", "組別", "身分證字號", "執行結果", "備註詳情"];
+      const headerRange = logSheet.getRange(1, 1, 1, headers.length);
+      headerRange.setValues([headers]);
+      headerRange.setFontWeight("bold");
+      headerRange.setBackground("#e2e8f0");
+      headerRange.setHorizontalAlignment("center");
+      logSheet.setFrozenRows(1);
+    }
+
+    const nowStr = Utilities.formatDate(new Date(), "Asia/Taipei", "yyyy-MM-dd HH:mm:ss");
+    const cleanId = idNumber ? ("'" + idNumber.toString().trim()) : "";
+
+    logSheet.appendRow([
+      nowStr,
+      actionType || "",
+      idNo || "",
+      name || "",
+      groupName || "",
+      cleanId,
+      result || "",
+      note || ""
+    ]);
+  } catch (err) {
+    Logger.log("appendLog 錯誤: " + err.toString());
   }
 }
 

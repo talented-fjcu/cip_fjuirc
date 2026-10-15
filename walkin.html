@@ -311,6 +311,26 @@
       rtdb = firebase.database();
     }
 
+    // 推播日誌至 Firebase Realtime Database (/logs)
+    function pushFirebaseLog(actionType, idNo, name, groupName, result, note) {
+      if (rtdb) {
+        try {
+          rtdb.ref('/logs').push({
+            timestamp: new Date().toISOString(),
+            timeStr: new Date().toLocaleTimeString('zh-TW', { hour12: false }),
+            actionType: actionType || '',
+            idNo: idNo || '',
+            name: name || '',
+            groupName: groupName || '',
+            result: result || '',
+            note: note || ''
+          });
+        } catch (e) {
+          console.warn("Firebase log push failed", e);
+        }
+      }
+    }
+
     // 監聽 Enter 鍵直接送出
     const inputEl = document.getElementById('walkinIdInput');
     inputEl.addEventListener('keydown', e => {
@@ -459,6 +479,8 @@
             });
           }
 
+          pushFirebaseLog("臨時報到", result.idNo, result.name, result.groupName, "成功派號報到", "自動配發 " + result.idNo + "，總表資料匯入完成");
+
           inputEl.value = "";
           inputEl.focus();
 
@@ -469,6 +491,8 @@
           rTitle.innerText = "此人已在名冊中";
           rTitle.style.color = "#b45309";
           playSound('warning');
+
+          pushFirebaseLog("臨時報到", result.idNo, result.name, result.groupName, "重複新增攔截", "此人已在名冊中(編號:" + result.idNo + ")");
 
           rBody.innerHTML = `
             <div style="font-size:16px; color:#92400e; font-weight:bold; margin-bottom:10px;">
@@ -504,6 +528,8 @@
           rTitle.innerText = "總表無此人資料";
           rTitle.style.color = "#b91c1c";
           playSound('error');
+
+          pushFirebaseLog("臨時報到", "", "", "", "查無總表資料", "比對總表母檔失敗，查無此身分證");
 
           rBody.innerHTML = `
             <div style="font-size:16px; color:#991b1b; font-weight:bold; margin-bottom:8px;">

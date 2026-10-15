@@ -434,6 +434,47 @@
       }
     }
 
+    // 推播日誌至 Firebase Realtime Database (/logs)
+    function pushFirebaseLog(actionType, idNo, name, groupName, result, note) {
+      if (rtdb) {
+        try {
+          rtdb.ref('/logs').push({
+            timestamp: new Date().toISOString(),
+            timeStr: new Date().toLocaleTimeString('zh-TW', { hour12: false }),
+            actionType: actionType || '',
+            idNo: idNo || '',
+            name: name || '',
+            groupName: groupName || '',
+            result: result || '',
+            note: note || ''
+          });
+        } catch (e) {
+          console.warn("Firebase log push failed", e);
+        }
+      }
+    }
+
+    // 非同步向 Google 試算表「log」分頁寫入記錄
+    function callGasLog(actionType, idNo, name, groupName, idNumber, result, note) {
+      if (!API_URL) return;
+      fetch(API_URL, {
+        method: "POST",
+        headers: { "Content-Type": "text/plain;charset=utf-8" },
+        body: JSON.stringify({
+          action: "recordLog",
+          logData: {
+            actionType: actionType,
+            idNo: idNo || "",
+            name: name || "",
+            groupName: groupName || "",
+            idNumber: idNumber || "",
+            result: result || "",
+            note: note || ""
+          }
+        })
+      }).catch(e => console.warn("GAS log record failed", e));
+    }
+
     // 鎖定狀態切換 (連動 index.html 報到過號)
     function toggleStageLock() {
       const willLock = !isStageLocked;
@@ -448,6 +489,11 @@
           isStageLocked = willLock;
           updateLockCardUI();
         }
+
+        const actionResult = willLock ? "鎖定截止" : "解除鎖定";
+        const actionNote = `工作人員將【${currentStage}】設為${actionResult}狀態`;
+        pushFirebaseLog("階段鎖定", "", "", currentStage, actionResult, actionNote);
+        callGasLog("階段鎖定", "", "", currentStage, "", actionResult, actionNote);
       }
     }
 
@@ -493,6 +539,14 @@
           lineupTime: realTimeRecords[idNo].lineupTime
         });
       }
+
+      // 記錄日誌 (Firebase + Google Sheets log)
+      const attendee = stageAttendees.find(a => (a[0] ? String(a[0]).trim() : '') === String(idNo).trim());
+      const attendeeName = attendee ? (attendee[3] || '') : '';
+      const actionResult = newStatus ? "完成整隊" : "取消整隊";
+      const actionNote = `【${currentStage}】${attendeeName ? attendeeName + ' ' : ''}${actionResult}`;
+      pushFirebaseLog("整隊作業", idNo, attendeeName, currentStage, actionResult, actionNote);
+      callGasLog("整隊作業", idNo, attendeeName, currentStage, "", actionResult, actionNote);
     }
 
     // 切換「檢錄」狀態 (按一下打勾，再按一下取消打勾)
@@ -515,6 +569,14 @@
           rollcallTime: realTimeRecords[idNo].rollcallTime
         });
       }
+
+      // 記錄日誌 (Firebase + Google Sheets log)
+      const attendee = stageAttendees.find(a => (a[0] ? String(a[0]).trim() : '') === String(idNo).trim());
+      const attendeeName = attendee ? (attendee[3] || '') : '';
+      const actionResult = newStatus ? "完成檢錄" : "取消檢錄";
+      const actionNote = `【${currentStage}】${attendeeName ? attendeeName + ' ' : ''}${actionResult}`;
+      pushFirebaseLog("檢錄作業", idNo, attendeeName, currentStage, actionResult, actionNote);
+      callGasLog("檢錄作業", idNo, attendeeName, currentStage, "", actionResult, actionNote);
     }
 
     // 載入名冊資料
