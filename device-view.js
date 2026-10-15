@@ -41,6 +41,9 @@
   window.setDeviceMode = function(mode) {
     localStorage.setItem(STORAGE_KEY, mode);
     applyMode(mode);
+    try {
+      window.dispatchEvent(new CustomEvent("cip-device-mode-change", { detail: { mode: mode } }));
+    } catch (e) {}
   };
 
   // 生成切換器 HTML

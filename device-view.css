@@ -98,8 +98,8 @@ html[data-device-mode="desktop"] .stage-list {
   margin-bottom: 28px !important;
 }
 
-/* 查詢看板卡片容器：寬版 3～4 欄展開 */
-html[data-device-mode="desktop"] .cards-container {
+/* 查詢看板卡片容器：寬版 3～4 欄展開 (當未隱藏時) */
+html[data-device-mode="desktop"] .cards-container:not(.view-mode-hidden) {
   display: grid !important;
   grid-template-columns: repeat(auto-fill, minmax(360px, 1fr)) !important;
   gap: 18px !important;
@@ -246,7 +246,7 @@ html[data-device-mode="tablet"] .stage-list {
   margin-bottom: 26px !important;
 }
 
-html[data-device-mode="tablet"] .cards-container {
+html[data-device-mode="tablet"] .cards-container:not(.view-mode-hidden) {
   display: grid !important;
   grid-template-columns: repeat(2, 1fr) !important;
   gap: 16px !important;
@@ -400,7 +400,7 @@ html[data-device-mode="mobile"] .stage-list {
   gap: 14px !important;
 }
 
-html[data-device-mode="mobile"] .cards-container {
+html[data-device-mode="mobile"] .cards-container:not(.view-mode-hidden) {
   display: grid !important;
   grid-template-columns: 1fr !important;
   gap: 14px !important;
@@ -546,3 +546,9 @@ html[data-device-mode="mobile"] .table-container table td {
   font-size: 15px !important;
   padding: 12px 8px !important;
 }
+
+/* 檢視模式隱藏類別 (最高權重，防止卡片與表格同時出現) */
+.view-mode-hidden {
+  display: none !important;
+}
+
