@@ -4,6 +4,11 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no" />
   <title>研習報到統計看板 - 原資增能獎勵報到系統</title>
+
+  <!-- 引入 Firebase SDK (相容模式 CDN) -->
+  <script src="https://www.gstatic.com/firebasejs/10.13.2/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.13.2/firebase-database-compat.js"></script>
+  <script src="firebase-config.js"></script>
   
   <style>
     * { 
@@ -359,15 +364,16 @@
     <!-- 卡片檢視區塊 (手機友善) -->
     <div id="cardsContainer" class="cards-container"></div>
 
-    <!-- 表格檢視區塊 (移除身分證字號，版面更清爽) -->
+    <!-- 表格檢視區塊 -->
     <div class="table-container" id="tableContainer">
       <table>
         <thead>
           <tr>
-            <th style="width: 15%; text-align: center;">編號</th>
-            <th style="width: 25%;">姓名</th>
-            <th style="width: 40%;">獎勵項目</th>
-            <th style="width: 20%; text-align: center;">報到狀態</th>
+            <th style="width: 13%; text-align: center;">組別</th>
+            <th style="width: 14%; text-align: center;">編號</th>
+            <th style="width: 20%;">姓名</th>
+            <th style="width: 35%;">獎勵項目</th>
+            <th style="width: 18%; text-align: center;">報到狀態</th>
           </tr>
         </thead>
         <tbody id="tb"></tbody>
@@ -377,6 +383,10 @@
 
   <script>
     let db = [];
+    let liveCheckins = {};
+    let rtdb = null;
+    let isFetching = false;
+
     const DEFAULT_GAS_URL = "https://script.google.com/macros/s/AKfycbwQnQrRL0rWlM50-KTjrx2iC8xtYTvoL9e-NL56EiDE7dU_SsgnGT-45eoY3apswwE1xA/exec";
     let API_URL = localStorage.getItem("CIP_GAS_URL") || DEFAULT_GAS_URL;
 
@@ -385,8 +395,25 @@
 
     window.onload = function() {
       updateViewModeUI();
+      initFirebase();
       fetchAdminData();
+
+      // 每 3 秒背景自動同步 Google 試算表最新名冊 (臨時報到新增的 F-XX 號碼牌立即自動載入)
+      setInterval(() => {
+        fetchAdminData(true);
+      }, 3000);
     };
+
+    function initFirebase() {
+      if (typeof firebase !== 'undefined' && firebase.apps && firebase.apps.length) {
+        rtdb = firebase.database();
+        // 監聽門口報到即時推播
+        rtdb.ref('/checkins').on('value', snap => {
+          liveCheckins = snap.val() || {};
+          draw();
+        });
+      }
+    }
 
     function setViewMode(mode) {
       currentViewMode = mode;
@@ -413,11 +440,16 @@
       }
     }
 
-    async function fetchAdminData() {
+    async function fetchAdminData(isBackground = false) {
+      if (isFetching) return;
+      isFetching = true;
+
       const d = document.getElementById('diag');
-      d.innerHTML = "⏳ 正在更新名冊數據...";
-      d.style.background = "#fff3e0"; 
-      d.style.color = "#e65100";
+      if (!isBackground) {
+        d.innerHTML = "⏳ 正在更新名冊數據...";
+        d.style.background = "#fff3e0"; 
+        d.style.color = "#e65100";
+      }
 
       if (API_URL) {
         try {
@@ -428,7 +460,8 @@
           });
           const result = await res.json();
           if (result.success) {
-            d.innerHTML = "✅ 連線成功 (共 " + result.data.length + " 筆名單)";
+            const timeStr = new Date().toLocaleTimeString('zh-TW', { hour12: false });
+            d.innerHTML = `✅ 連線成功 (共 ${result.data.length} 筆名單 ｜ 自動同步中 ${timeStr})`;
             d.style.background = "#e8f5e9"; 
             d.style.color = "#2e7d32";
             db = result.data; 
@@ -440,20 +473,25 @@
             d.style.color = "#d32f2f";
           }
         } catch (err) {
-          d.innerHTML = "❌ 連線錯誤: " + err.toString();
-          d.style.background = "#ffebee"; 
-          d.style.color = "#d32f2f";
+          if (!isBackground) {
+            d.innerHTML = "❌ 連線錯誤: " + err.toString();
+            d.style.background = "#ffebee"; 
+            d.style.color = "#d32f2f";
+          }
+        } finally {
+          isFetching = false;
         }
       } else {
+        isFetching = false;
         // 展示模式模擬資料
         d.innerHTML = "💡 展示模式 (模擬資料)";
         d.style.background = "#e8f0fe"; 
         d.style.color = "#1967d2";
         db = [
-          ["001", "第一組", "", "陳大文", "語文競賽特優", "2026-08-20 08:45:12", "是"],
-          ["002", "第二組", "", "李曉明", "原民專門人才卓越獎", "", "否"],
-          ["003", "第一組", "", "張小美", "學術專利深造獎勵", "2026-08-20 09:12:00", "是"],
-          ["004", "第三組", "", "王志明", "專題研究計畫甲等", "", "是"]
+          ["001", "第1階", "", "陳大文", "語文競賽特優", "2026-08-20 08:45:12", "是"],
+          ["002", "第2階", "", "李曉明", "原民專門人才卓越獎", "", "否"],
+          ["003", "第1階", "", "張小美", "學術專利深造獎勵", "2026-08-20 09:12:00", "是"],
+          ["004", "第3階", "", "王志明", "專題研究計畫甲等", "", "是"]
         ];
         initFilters();
         draw();
@@ -476,32 +514,11 @@
       const prevGroup = fGroup.value;
       const prevReward = fReward.value;
 
-      // 中文數字解析器，支援「第一階」、「第二階」至「第N階/組」按數字順序排序
-      const cnMap = { '零': 0, '一': 1, '二': 2, '兩': 2, '三': 3, '四': 4, '五': 5, '六': 6, '七': 7, '八': 8, '九': 9 };
-      function getChineseNumValue(str) {
-        if (!str) return 999;
-        if (/^\d+$/.test(str)) return parseInt(str, 10);
-        let total = 0, temp = 0;
-        for (let i = 0; i < str.length; i++) {
-          const ch = str[i];
-          if (cnMap[ch] !== undefined) {
-            temp = cnMap[ch];
-          } else if (ch === '十') {
-            if (temp === 0) temp = 1;
-            total += temp * 10;
-            temp = 0;
-          }
-        }
-        total += temp;
-        return total > 0 ? total : 999;
-      }
-
+      // 數字解析排序 (第1階、第2階... 第6階)
       function getGroupOrder(str) {
         if (!str) return 999;
-        const match = str.match(/第([一二兩三四五六七八九十\d]+)/);
-        if (match) return getChineseNumValue(match[1]);
-        const matchNoPrefix = str.match(/([一二兩三四五六七八九十\d]+)/);
-        if (matchNoPrefix) return getChineseNumValue(matchNoPrefix[1]);
+        const match = str.match(/第?(\d+)階?/);
+        if (match) return parseInt(match[1], 10);
         return 999;
       }
 
@@ -556,13 +573,19 @@
         // r[4]: 獎勵項目
         // r[5]: 報到時間
         // r[6]: 交通費核銷否
-        const idNo = r[0] || '-';
-        const groupName = r[1] || '-';
-        const name = r[3] || '-';
-        const reward = r[4] || '-';
-        const checkInTime = r[5] ? String(r[5]).trim() : '';
+        const idNo = (r[0] !== undefined && r[0] !== null) ? String(r[0]).trim() : '-';
+        const groupName = (r[1] !== undefined && r[1] !== null) ? String(r[1]).trim() : '-';
+        const name = (r[3] !== undefined && r[3] !== null) ? String(r[3]).trim() : '-';
+        const reward = (r[4] !== undefined && r[4] !== null) ? String(r[4]).trim() : '-';
 
-        const isCheckedIn = (checkInTime !== "");
+        // 報到狀態 (整合 Google Sheets 與 Firebase 即時比對)
+        const hasSheetCheckin = !!(r[5] && String(r[5]).trim() !== "");
+        const live = liveCheckins[idNo] || liveCheckins[idNo.toUpperCase()] || {};
+        const liveTime = live.time ? String(live.time) : '';
+        const checkInTime = String(r[5] || liveTime).trim();
+        const isLate = checkInTime.includes("過號") || !!live.isLate;
+        const isCheckedIn = hasSheetCheckin || !!live.checkedIn || isLate;
+
         if (isCheckedIn) countIn++;
         else countNot++;
 
@@ -585,7 +608,8 @@
         const matchReward = (sReward === "all") || (reward === sReward);
 
         if (matchKeyword && matchStatus && matchGroup && matchReward) {
-          const isLate = checkInTime.includes('過號');
+          countFiltered++;
+
           const timeOnly = checkInTime ? (checkInTime.split(' ')[1] || checkInTime) : '';
 
           let tableStatusBadge = "";
@@ -604,9 +628,10 @@
             cardStatusBadge = `<span class="badge-status-no" style="font-size:12px; padding:3px 10px;">未報到</span>`;
           }
 
-          // 1. 表格列 HTML (簡潔 4 欄：編號、姓名、獎勵項目、報到狀態)
+          // 1. 表格列 HTML (包含：組別、編號、姓名、獎勵項目、報到狀態)
           tableHtml += `
             <tr style="background:${isCheckedIn ? 'rgba(230, 244, 234, 0.3)' : 'none'};">
+              <td style="text-align:center;"><span style="font-weight:bold; color:#1d4ed8; background:#eff6ff; padding:3px 8px; border-radius:8px; font-size:13px; border:1px solid #bfdbfe;">${groupName}</span></td>
               <td style="text-align:center; font-weight:bold; color:#1a73e8;">${idNo}</td>
               <td><b>${name}</b></td>
               <td>${reward}</td>
@@ -618,7 +643,10 @@
           cardsHtml += `
             <div class="person-card ${isCheckedIn ? 'checked-in' : ''}">
               <div class="card-top">
-                <span class="card-badge-id">#${idNo}</span>
+                <div style="display:flex; gap:6px; align-items:center;">
+                  <span class="card-badge-group">${groupName}</span>
+                  <span class="card-badge-id">#${idNo}</span>
+                </div>
                 ${cardStatusBadge}
               </div>
               <div class="card-name-row">
@@ -634,7 +662,7 @@
       });
 
       if (countFiltered === 0) {
-        tb.innerHTML = `<tr><td colspan="4" style="text-align:center; padding: 30px; color:#888;">查無符合條件的學員資料</td></tr>`;
+        tb.innerHTML = `<tr><td colspan="5" style="text-align:center; padding: 30px; color:#888;">查無符合條件的學員資料</td></tr>`;
         cardsContainer.innerHTML = `<div style="grid-column: 1 / -1; text-align:center; padding: 40px 20px; color:#888; font-size:15px; background:rgba(255,255,255,0.7); border-radius:16px;">查無符合條件的學員資料</div>`;
       } else {
         tb.innerHTML = tableHtml;

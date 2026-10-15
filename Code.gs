@@ -73,7 +73,7 @@ function processScan(idNumber, lockedStages) {
 
   const cleanId = idNumber.toString().trim().toUpperCase();
   const ss = SpreadsheetApp.openById(SPREADSHEET_ID);
-  const sheet = ss.getSheets()[0];
+  const sheet = ss.getSheetByName("工作表1") || ss.getSheets()[0];
   const data = sheet.getDataRange().getValues();
 
   // 第一列為表頭 (Row 0)，從第二列開始搜尋 (i = 1)
@@ -167,7 +167,7 @@ function processScan(idNumber, lockedStages) {
 function getAdminData() {
   try {
     const ss = SpreadsheetApp.openById(SPREADSHEET_ID);
-    const sheet = ss.getSheets()[0];
+    const sheet = ss.getSheetByName("工作表1") || ss.getSheets()[0];
     const rawData = sheet.getDataRange().getValues();
 
     if (rawData.length <= 1) {
@@ -384,7 +384,7 @@ function appendLog(actionType, idNo, name, groupName, idNumber, result, note, op
     
     // 若不存在「log」工作表分頁，自動建立並格式化表頭
     if (!logSheet) {
-      logSheet = ss.insertSheet("log");
+      logSheet = ss.insertSheet("log", ss.getNumSheets());
       const headers = ["時間", "動作類型", "編號", "姓名", "組別", "身分證字號", "執行結果", "備註詳情"];
       const headerRange = logSheet.getRange(1, 1, 1, headers.length);
       headerRange.setValues([headers]);
