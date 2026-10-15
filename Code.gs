@@ -83,8 +83,8 @@ function processScan(idNumber, lockedStages) {
     const targetId = row[2] ? row[2].toString().trim().toUpperCase() : "";
 
     if (targetId === cleanId) {
-      const idNo = row[0] ? row[0].toString() : "";         // A: 編號
-      const groupName = row[1] ? row[1].toString() : "";    // B: 組別
+      const idNo = row[0] ? row[0].toString().trim() : "";         // A: 編號
+      const groupName = row[1] ? row[1].toString().trim() : "";    // B: 組別
       const name = row[3] ? row[3].toString() : "";         // D: 姓名
       const reward = row[4] ? row[4].toString() : "";       // E: 獎勵項目
       let checkInTime = row[5] ? row[5] : "";               // F: 報到時間

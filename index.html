@@ -561,7 +561,10 @@
         card.style.display = 'block';
         manualInput.value = "";
         
-        if (res.status === "locked" || ((res.status === "success" || res.status === "already") && res.groupName && lockedStages[res.groupName])) {
+        const gName = res.groupName ? String(res.groupName).trim() : '';
+        const isStageLocked = (res.status === "locked") || (gName && (lockedStages[gName] || lockedStages[gName.replace(/\s+/g, '')]));
+
+        if (isStageLocked) {
           // 該階已被鎖定：阻擋報到並顯示「過號」
           document.getElementById('resIcon').innerText = "❌";
           document.getElementById('resTitle').innerText = "過號（該階已截止報到）";
