@@ -236,16 +236,40 @@
       border-radius: 14px;
       margin: 18px 0;
     }
+    .pin-actions {
+      display: flex;
+      gap: 12px;
+      margin-top: 10px;
+    }
+    .pin-cancel-btn {
+      flex: 1;
+      padding: 14px;
+      background: #f1f5f9;
+      color: #475569;
+      border: 1px solid #cbd5e1;
+      border-radius: 14px;
+      font-size: 16px;
+      font-weight: bold;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+    .pin-cancel-btn:hover {
+      background: #e2e8f0;
+    }
     .pin-submit-btn {
-      width: 100%;
+      flex: 1;
       padding: 14px;
       background: #1976d2;
       color: #fff;
       border: none;
       border-radius: 14px;
-      font-size: 18px;
+      font-size: 16px;
       font-weight: bold;
       cursor: pointer;
+      transition: all 0.2s;
+    }
+    .pin-submit-btn:hover {
+      background: #1565c0;
     }
   </style>
 </head>
@@ -284,10 +308,13 @@
   <!-- 密碼輸入彈窗 -->
   <div id="pwdModal">
     <div class="modal-box">
-      <h3 style="margin-top:0;">🔐 請輸入檢錄授權密碼</h3>
-      <div style="font-size:14px; color:#666;">請輸入 8 位數密碼以開啟檢錄功能</div>
+      <h3 style="margin-top:0; color:#1e293b;">🔐 請輸入檢錄編輯密碼</h3>
+      <div id="pwdModalDesc" style="font-size:14px; color:#64748b; line-height:1.4;">點擊階段進入檢錄與整隊作業需輸入密碼</div>
       <input type="password" id="pinInput" class="pin-input" maxlength="20" placeholder="••••••••" autocomplete="off" />
-      <button class="pin-submit-btn" onclick="verifyPin()">解鎖進入</button>
+      <div class="pin-actions">
+        <button type="button" class="pin-cancel-btn" onclick="closePwdModal()">取消</button>
+        <button type="button" class="pin-submit-btn" onclick="verifyPin()">解鎖進入</button>
+      </div>
       <div id="pinError" style="color:#d32f2f; font-size:13px; margin-top:10px; display:none;">密碼錯誤，請重新輸入</div>
     </div>
   </div>
@@ -296,10 +323,9 @@
     // =========================================================================
     // 設定區
     // =========================================================================
-    // 檢視頁面無需密碼，僅進入編輯作業時需密碼
-    const REQUIRE_PASSWORD = false; 
     const DEFAULT_PIN = "64152195";
     let syncIntervalId = null;
+    let targetStage = null;
 
     const DEFAULT_STAGES = ["第1階", "第2階", "第3階", "第4階", "第5階", "第6階"];
 
@@ -351,35 +377,53 @@
       }, 4000);
     }
 
-    // 檢查密碼授權
-    function checkAuth() {
-      if (!REQUIRE_PASSWORD) return true;
-      const isAuthed = sessionStorage.getItem("CIP_ROLLCALL_AUTH");
-      if (isAuthed === "true") return true;
+    // 點擊階段卡片時觸發：已授權則直接前往，未授權則彈出密碼輸入框
+    function selectStage(stage) {
+      targetStage = stage;
+      if (sessionStorage.getItem("CIP_ROLLCALL_AUTH") === "true") {
+        window.location.href = `rollcall_edit.html?stage=${encodeURIComponent(stage)}`;
+        return;
+      }
+      const desc = document.getElementById('pwdModalDesc');
+      if (desc) desc.innerText = `進入【${stage}】進行檢錄作業需輸入 8 位數授權密碼`;
+      const err = document.getElementById('pinError');
+      if (err) err.style.display = 'none';
       const modal = document.getElementById('pwdModal');
-      modal.style.display = 'flex';
+      if (modal) modal.style.display = 'flex';
       const inp = document.getElementById('pinInput');
       if (inp) {
         inp.value = '';
         inp.focus();
-        inp.onkeydown = e => { if (e.key === 'Enter') verifyPin(); };
+        inp.onkeydown = e => { 
+          if (e.key === 'Enter') verifyPin();
+          if (e.key === 'Escape') closePwdModal();
+        };
       }
-      return false;
+    }
+
+    function closePwdModal() {
+      targetStage = null;
+      const modal = document.getElementById('pwdModal');
+      if (modal) modal.style.display = 'none';
     }
 
     function verifyPin() {
       const pin = document.getElementById('pinInput').value.trim();
       if (pin === DEFAULT_PIN) {
         sessionStorage.setItem("CIP_ROLLCALL_AUTH", "true");
-        document.getElementById('pwdModal').style.display = 'none';
-        renderStages();
-        startAutoSync();
+        const modal = document.getElementById('pwdModal');
+        if (modal) modal.style.display = 'none';
+        if (targetStage) {
+          window.location.href = `rollcall_edit.html?stage=${encodeURIComponent(targetStage)}`;
+        }
       } else {
         const err = document.getElementById('pinError');
-        err.style.display = 'block';
+        if (err) err.style.display = 'block';
         const inp = document.getElementById('pinInput');
-        inp.value = '';
-        inp.focus();
+        if (inp) {
+          inp.value = '';
+          inp.focus();
+        }
       }
     }
 
@@ -472,7 +516,7 @@
           : `點擊進入進行整隊與檢錄`;
 
         html += `
-          <a href="rollcall_edit.html?stage=${encodeURIComponent(stage)}" class="stage-card-btn">
+          <div class="stage-card-btn" onclick="selectStage('${stage}')" style="cursor:pointer;">
             <div class="stage-info">
               <div class="stage-title">
                 <span>${stage}</span>
@@ -482,20 +526,18 @@
             <div>
               ${badgeHtml}
             </div>
-          </a>
+          </div>
         `;
       });
 
       container.innerHTML = html;
     }
 
-    // 啟動流程
+    // 啟動流程：名冊與階段看板無需密碼直接載入
     window.addEventListener('DOMContentLoaded', () => {
       initFirebase();
       renderStages();
-      if (checkAuth()) {
-        startAutoSync();
-      }
+      startAutoSync();
     });
   </script>
 </body>

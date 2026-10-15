@@ -419,50 +419,24 @@
     .pin-submit-btn:hover {
       background: #1565c0;
     }
-    .auth-badge {
-      display: inline-flex;
-      align-items: center;
-      gap: 6px;
-      padding: 7px 14px;
-      border-radius: 14px;
-      font-size: 13px;
-      font-weight: bold;
-      cursor: pointer;
-      border: none;
-      transition: all 0.2s;
-    }
-    .auth-badge.unauthed {
-      background: #fff7ed;
-      color: #c2410c;
-      border: 1.5px solid #fed7aa;
-    }
-    .auth-badge.unauthed:hover {
-      background: #ffedd5;
-    }
-    .auth-badge.authed {
-      background: #f0fdf4;
-      color: #15803d;
-      border: 1.5px solid #bbf7d0;
-      cursor: default;
-    }
   </style>
 </head>
 <body>
 
-  <!-- 密碼輸入彈窗 (僅在進行整隊/檢錄/鎖定等編輯作業時要求) -->
+  <!-- 密碼輸入彈窗 (進入各階編輯作業需輸入密碼) -->
   <div id="pwdModal">
     <div class="modal-box">
       <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
         <h3 style="margin:0; font-size:20px; color:#1e293b;">🔐 請輸入檢錄編輯密碼</h3>
         <button type="button" onclick="closePwdModal()" style="background:none; border:none; font-size:22px; cursor:pointer; color:#94a3b8; line-height:1;">✕</button>
       </div>
-      <div style="font-size:14px; color:#64748b; line-height:1.4; text-align:left; margin-bottom:10px;">
-        名冊檢視無需密碼；若需進行「整隊」、「檢錄」或「鎖定階段」編輯作業，請輸入 8 位數授權密碼。
+      <div id="pwdModalDesc" style="font-size:14px; color:#64748b; line-height:1.4; text-align:left; margin-bottom:10px;">
+        進入各階段檢錄與整隊作業需輸入 8 位數授權密碼。
       </div>
       <input type="password" id="pinInput" class="pin-input" maxlength="20" placeholder="••••••••" autocomplete="off" />
       <div class="pin-actions">
-        <button type="button" class="pin-cancel-btn" onclick="closePwdModal()">僅檢視</button>
-        <button type="button" class="pin-submit-btn" onclick="verifyPin()">解鎖編輯</button>
+        <button type="button" class="pin-cancel-btn" onclick="closePwdModal()">返回選單</button>
+        <button type="button" class="pin-submit-btn" onclick="verifyPin()">解鎖進入</button>
       </div>
       <div id="pinError" style="color:#d32f2f; font-size:13px; margin-top:10px; display:none;">密碼錯誤，請重新輸入</div>
     </div>
@@ -479,11 +453,7 @@
       <div class="current-stage-title" id="stageTitle">
         📋 階段檢錄作業
       </div>
-      <div style="display:flex; align-items:center; gap:8px;">
-        <button type="button" id="authBadge" class="auth-badge unauthed" onclick="onAuthBadgeClick()">
-          🔒 檢視模式 (點此解鎖編輯)
-        </button>
-      </div>
+      <div></div>
     </div>
 
     <!-- 鎖定控制卡片 (連動報到網頁，鎖定後該階報到顯示過號) -->
@@ -652,12 +622,10 @@
 
     // 鎖定狀態切換 (連動 index.html 報到過號)
     function toggleStageLock() {
-      requireEditAuth(() => {
-        executeToggleStageLock();
-      });
-    }
-
-    function executeToggleStageLock() {
+      if (!isEditorAuthed()) {
+        openPwdModal(() => toggleStageLock());
+        return;
+      }
       const willLock = !isStageLocked;
       const confirmMsg = willLock 
         ? `確定要「鎖定【${currentStage}】」嗎？\n鎖定後，門口報到處若掃描到此階受獎人，將無法報到並直接顯示「❌ 過號」！`
@@ -702,12 +670,10 @@
 
     // 切換「整隊」狀態 (按一下打勾，再按一下取消打勾)
     function toggleLineup(idNo) {
-      requireEditAuth(() => {
-        executeToggleLineup(idNo);
-      });
-    }
-
-    function executeToggleLineup(idNo) {
+      if (!isEditorAuthed()) {
+        openPwdModal(() => toggleLineup(idNo));
+        return;
+      }
       const current = realTimeRecords[idNo] || {};
       const newStatus = !current.lineup;
 
@@ -738,12 +704,10 @@
 
     // 切換「檢錄」狀態 (按一下打勾，再按一下取消打勾)
     function toggleRollcall(idNo) {
-      requireEditAuth(() => {
-        executeToggleRollcall(idNo);
-      });
-    }
-
-    function executeToggleRollcall(idNo) {
+      if (!isEditorAuthed()) {
+        openPwdModal(() => toggleRollcall(idNo));
+        return;
+      }
       const current = realTimeRecords[idNo] || {};
       const newStatus = !current.rollcall;
 
@@ -909,25 +873,6 @@
       return sessionStorage.getItem("CIP_ROLLCALL_AUTH") === "true";
     }
 
-    function updateAuthUI() {
-      const badge = document.getElementById('authBadge');
-      if (!badge) return;
-      if (isEditorAuthed()) {
-        badge.className = "auth-badge authed";
-        badge.innerHTML = "🔓 已解鎖編輯";
-        badge.onclick = null;
-      } else {
-        badge.className = "auth-badge unauthed";
-        badge.innerHTML = "🔒 檢視模式 (點此解鎖編輯)";
-        badge.onclick = onAuthBadgeClick;
-      }
-    }
-
-    function onAuthBadgeClick() {
-      if (isEditorAuthed()) return;
-      openPwdModal(null);
-    }
-
     function openPwdModal(callback) {
       pendingEditCallback = callback;
       const modal = document.getElementById('pwdModal');
@@ -938,7 +883,10 @@
       if (inp) {
         inp.value = '';
         inp.focus();
-        inp.onkeydown = e => { if (e.key === 'Enter') verifyPin(); };
+        inp.onkeydown = e => { 
+          if (e.key === 'Enter') verifyPin(); 
+          if (e.key === 'Escape') closePwdModal();
+        };
       }
     }
 
@@ -946,14 +894,18 @@
       pendingEditCallback = null;
       const modal = document.getElementById('pwdModal');
       if (modal) modal.style.display = 'none';
+      // 若尚未授權點擊取消或關閉，安全退回 rollcall.html
+      if (!isEditorAuthed()) {
+        window.location.href = "rollcall.html";
+      }
     }
 
     function verifyPin() {
       const pin = document.getElementById('pinInput').value.trim();
       if (pin === DEFAULT_PIN) {
         sessionStorage.setItem("CIP_ROLLCALL_AUTH", "true");
-        closePwdModal();
-        updateAuthUI();
+        const modal = document.getElementById('pwdModal');
+        if (modal) modal.style.display = 'none';
         if (typeof pendingEditCallback === 'function') {
           const cb = pendingEditCallback;
           pendingEditCallback = null;
@@ -970,20 +922,16 @@
       }
     }
 
-    // 檢查編輯權限的包裝器：已授權則直接執行，未授權則跳出密碼驗證
-    function requireEditAuth(actionFn) {
-      if (isEditorAuthed()) {
-        actionFn();
-      } else {
-        openPwdModal(actionFn);
-      }
-    }
-
-    // 啟動 (名冊檢視無需密碼，直接載入即時名單)
+    // 啟動 (若未經由 rollcall.html 輸入密碼授權，提示輸入密碼)
     window.addEventListener('DOMContentLoaded', () => {
       initFirebase();
       loadAttendeeData();
-      updateAuthUI();
+
+      if (!isEditorAuthed()) {
+        const desc = document.getElementById('pwdModalDesc');
+        if (desc) desc.innerText = `進入【${currentStage}】進行檢錄作業需輸入 8 位數授權密碼`;
+        openPwdModal();
+      }
 
       // 每 4 秒自動背景同步試算表最新名冊
       setInterval(() => {
