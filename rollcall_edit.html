@@ -395,7 +395,7 @@
   <script>
     // 取得當前網址指定之階數
     const urlParams = new URLSearchParams(window.location.search);
-    const currentStage = urlParams.get('stage') || '第一階';
+    const currentStage = urlParams.get('stage') || '第1階';
 
     const DEFAULT_GAS_URL = "https://script.google.com/macros/s/AKfycbwQnQrRL0rWlM50-KTjrx2iC8xtYTvoL9e-NL56EiDE7dU_SsgnGT-45eoY3apswwE1xA/exec";
     const API_URL = localStorage.getItem("CIP_GAS_URL") || DEFAULT_GAS_URL;

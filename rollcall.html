@@ -297,7 +297,40 @@
     const REQUIRE_PASSWORD = false; 
     const DEFAULT_PIN = "12345";
 
-    const STAGES = ["第一階", "第二階", "第三階", "第四階", "第五階"];
+    const DEFAULT_STAGES = ["第1階", "第2階", "第3階", "第4階", "第5階", "第6階"];
+
+    // 階數數值解析器：優先支援「第1階」、「第2階」阿拉伯數字，亦相容中文數字
+    function parseStageNumber(str) {
+      if (!str) return 999;
+      const mNum = str.match(/第?(\d+)/);
+      if (mNum) return parseInt(mNum[1], 10);
+      const cnNums = { '零': 0, '一': 1, '二': 2, '兩': 2, '三': 3, '四': 4, '五': 5, '六': 6, '七': 7, '八': 8, '九': 9 };
+      const mCn = str.match(/第?([一二兩三四五六七八九十]+)/);
+      if (mCn) {
+        const s = mCn[1];
+        let total = 0, temp = 0;
+        for (let i = 0; i < s.length; i++) {
+          const ch = s[i];
+          if (cnNums[ch] !== undefined) temp = cnNums[ch];
+          else if (ch === '十') {
+            if (temp === 0) temp = 1;
+            total += temp * 10;
+            temp = 0;
+          }
+        }
+        total += temp;
+        return total > 0 ? total : 999;
+      }
+      return 999;
+    }
+
+    function compareStages(a, b) {
+      const numA = parseStageNumber(a);
+      const numB = parseStageNumber(b);
+      if (numA !== numB) return numA - numB;
+      return a.localeCompare(b, 'zh-Hant');
+    }
+
     const DEFAULT_GAS_URL = "https://script.google.com/macros/s/AKfycbwQnQrRL0rWlM50-KTjrx2iC8xtYTvoL9e-NL56EiDE7dU_SsgnGT-45eoY3apswwE1xA/exec";
     const API_URL = localStorage.getItem("CIP_GAS_URL") || DEFAULT_GAS_URL;
 
@@ -363,13 +396,21 @@
       }
     }
 
-    // 渲染五個階段按鈕
+    // 渲染階段按鈕 (自動動態整理試算表與預設的階數清單)
     function renderStages() {
       const container = document.getElementById('stageList');
       if (!container) return;
 
+      const stageSet = new Set(DEFAULT_STAGES);
+      db.forEach(r => {
+        if (r[1] && String(r[1]).trim() !== "") {
+          stageSet.add(String(r[1]).trim());
+        }
+      });
+      const activeStages = Array.from(stageSet).sort(compareStages);
+
       let html = "";
-      STAGES.forEach(stage => {
+      activeStages.forEach(stage => {
         const isLocked = !!lockedStages[stage];
 
         // 計算該階統計
@@ -380,8 +421,8 @@
         db.forEach(r => {
           if (r[1] && String(r[1]).trim() === stage) {
             totalCount++;
-            const idNo = r[0];
-            const rec = realTimeRecords[idNo];
+            const idNo = (r[0] !== undefined && r[0] !== null) ? String(r[0]).trim() : '';
+            const rec = realTimeRecords[idNo] || realTimeRecords[idNo.toUpperCase()] || {};
             if (rec && rec.rollcall) rollcallCount++;
             if (rec && rec.lineup) lineupCount++;
           }
