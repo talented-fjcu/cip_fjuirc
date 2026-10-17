@@ -481,6 +481,7 @@
             rtdb.ref(`/checkins/${result.idNo}`).set({
               checkedIn: true,
               time: result.checkInTime,
+              tribe: result.tribe || "",
               rewardDesc: result.rewardDesc || ""
             });
             rtdb.ref(`/records/${result.idNo}`).set({

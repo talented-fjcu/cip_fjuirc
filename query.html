@@ -592,12 +592,13 @@
         if (isStage6Selected) {
           tableHead.innerHTML = `
             <tr>
-              <th style="width: 10%; min-width: 85px; text-align: center;">組別</th>
-              <th style="width: 10%; min-width: 85px; text-align: center;">編號</th>
-              <th style="width: 14%; min-width: 100px;">姓名</th>
-              <th class="col-reward" style="width: 26%; min-width: 180px;">獎勵項目</th>
-              <th class="col-reward" style="width: 26%; min-width: 180px;">獎勵事蹟</th>
-              <th style="width: 14%; min-width: 100px; text-align: center;">報到狀態</th>
+              <th style="width: 9%; min-width: 80px; text-align: center;">組別</th>
+              <th style="width: 9%; min-width: 80px; text-align: center;">編號</th>
+              <th style="width: 12%; min-width: 95px;">姓名</th>
+              <th style="width: 10%; min-width: 85px; text-align: center;">族別</th>
+              <th class="col-reward" style="width: 23%; min-width: 160px;">獎勵項目</th>
+              <th class="col-reward" style="width: 25%; min-width: 170px;">獎勵事蹟</th>
+              <th style="width: 12%; min-width: 95px; text-align: center;">報到狀態</th>
             </tr>
           `;
         } else {
@@ -632,6 +633,7 @@
         // r[4]: 獎勵項目
         // r[5]: 報到時間
         // r[6]: 交通費核銷否
+        // r[8]: 族別 (I欄)
         // r[9]: 獎勵事蹟 (J欄)
         const idNo = (r[0] !== undefined && r[0] !== null) ? String(r[0]).trim() : '-';
         const groupName = (r[1] !== undefined && r[1] !== null) ? String(r[1]).trim() : '-';
@@ -644,6 +646,10 @@
         const checkInTime = String(r[5] || liveTime).trim();
         const isLate = checkInTime.includes("過號") || !!live.isLate;
         const isCheckedIn = hasSheetCheckin || !!live.checkedIn || isLate;
+        const rawTribe = (r[8] !== undefined && r[8] !== null && String(r[8]).trim() !== '')
+          ? String(r[8]).trim()
+          : (live.tribe ? String(live.tribe).trim() : '');
+        const tribe = rawTribe !== '' ? rawTribe : '-';
         const rawRewardDesc = (r[9] !== undefined && r[9] !== null && String(r[9]).trim() !== '')
           ? String(r[9]).trim()
           : (live.rewardDesc ? String(live.rewardDesc).trim() : '');
@@ -652,12 +658,13 @@
         if (isCheckedIn) countIn++;
         else countNot++;
 
-        // 搜尋過濾 (姓名、編號、獎勵項目、獎勵事蹟、組別)
+        // 搜尋過濾 (姓名、編號、獎勵項目、族別、獎勵事蹟、組別)
         const matchKeyword = (keyword === "") ||
           String(idNo).toUpperCase().includes(keyword) ||
           String(name).toUpperCase().includes(keyword) ||
           String(reward).toUpperCase().includes(keyword) ||
           String(groupName).toUpperCase().includes(keyword) ||
+          (isStage6Selected && String(tribe).toUpperCase().includes(keyword)) ||
           (isStage6Selected && String(rewardDesc).toUpperCase().includes(keyword));
 
         // 狀態過濾
@@ -695,8 +702,16 @@
             cardStatusBadge = `<span class="badge-status-no" style="font-size:12px; padding:3px 10px;">未報到</span>`;
           }
 
+          const tableTribeCell = isStage6Selected
+            ? `<td style="text-align:center; font-weight:bold; color:#0f766e;">${tribe}</td>`
+            : '';
+
           const tableRewardDescCell = isStage6Selected
             ? `<td class="col-reward" style="line-height:1.5;">${rewardDesc}</td>`
+            : '';
+
+          const cardTribeBadge = isStage6Selected
+            ? `<span style="background:#ccfbf1; color:#0f766e; font-weight:700; padding:3px 10px; border-radius:8px; font-size:13px;">族別：${tribe}</span>`
             : '';
 
           const cardRewardDescBlock = isStage6Selected
@@ -708,12 +723,13 @@
             `
             : '';
 
-          // 1. 表格列 HTML (包含：組別、編號、姓名、獎勵項目、[第6階:獎勵事蹟]、報到狀態)
+          // 1. 表格列 HTML (包含：組別、編號、姓名、[第6階:族別]、獎勵項目、[第6階:獎勵事蹟]、報到狀態)
           tableHtml += `
             <tr style="background:${isCheckedIn ? 'rgba(230, 244, 234, 0.3)' : 'none'};">
               <td style="text-align:center;"><span style="font-weight:bold; color:#1d4ed8; background:#eff6ff; padding:4px 10px; border-radius:10px; font-size:14px; border:1px solid #bfdbfe;">${groupName}</span></td>
               <td style="text-align:center; font-weight:bold; color:#1a73e8; font-size:16px;">${idNo}</td>
               <td><b style="font-size:17px; color:#111827;">${name}</b></td>
+              ${tableTribeCell}
               <td class="col-reward" style="line-height:1.5;">${reward}</td>
               ${tableRewardDescCell}
               <td style="text-align:center;">${tableStatusBadge}</td>
@@ -724,9 +740,10 @@
           cardsHtml += `
             <div class="person-card ${isCheckedIn ? 'checked-in' : ''}">
               <div class="card-top">
-                <div style="display:flex; gap:6px; align-items:center;">
+                <div style="display:flex; gap:6px; align-items:center; flex-wrap:wrap;">
                   <span class="card-badge-group">${groupName}</span>
                   <span class="card-badge-id">#${idNo}</span>
+                  ${cardTribeBadge}
                 </div>
                 ${cardStatusBadge}
               </div>
@@ -744,7 +761,7 @@
       });
 
       if (countFiltered === 0) {
-        const colSpan = isStage6Selected ? 6 : 5;
+        const colSpan = isStage6Selected ? 7 : 5;
         tb.innerHTML = `<tr><td colspan="${colSpan}" style="text-align:center; padding: 30px; color:#888;">查無符合條件的學員資料</td></tr>`;
         cardsContainer.innerHTML = `<div style="grid-column: 1 / -1; text-align:center; padding: 40px 20px; color:#888; font-size:15px; background:rgba(255,255,255,0.7); border-radius:16px;">查無符合條件的學員資料</div>`;
       } else {

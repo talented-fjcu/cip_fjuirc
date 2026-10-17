@@ -115,10 +115,10 @@ html[data-device-mode="desktop"] .view-row {
   align-items: center !important;
 }
 
-/* 第6階專屬 7 欄：組別 ｜ 編號 ｜ 姓名 ｜ 獎勵事蹟 ｜ 報到情況 ｜ 整隊 ｜ 檢錄 */
+/* 第6階專屬 8 欄：組別 ｜ 編號 ｜ 姓名 ｜ 族別 ｜ 獎勵事蹟 ｜ 報到情況 ｜ 整隊 ｜ 檢錄 */
 html[data-device-mode="desktop"] .attendee-item.is-stage-6,
 html[data-device-mode="desktop"] .view-row.is-stage-6 {
-  grid-template-columns: 105px 110px 1.2fr 1.8fr 1.1fr 135px 135px !important;
+  grid-template-columns: 95px 100px 1.1fr 90px 1.8fr 1.1fr 130px 130px !important;
 }
 
 html[data-device-mode="desktop"] .attendee-header,
@@ -144,6 +144,13 @@ html[data-device-mode="desktop"] .v-name {
   font-size: 22px !important;
   font-weight: 800 !important;
   color: #0f172a !important;
+}
+
+html[data-device-mode="desktop"] .cell-tribe,
+html[data-device-mode="desktop"] .v-tribe {
+  font-size: 16px !important;
+  font-weight: 700 !important;
+  color: #0f766e !important;
 }
 
 html[data-device-mode="desktop"] .cell-reward-desc,
@@ -275,10 +282,10 @@ html[data-device-mode="tablet"] .view-row {
   align-items: center !important;
 }
 
-/* 第6階專屬 7 欄：組別 ｜ 編號 ｜ 姓名 ｜ 獎勵事蹟 ｜ 報到情況 ｜ 整隊 ｜ 檢錄 */
+/* 第6階專屬 8 欄：組別 ｜ 編號 ｜ 姓名 ｜ 族別 ｜ 獎勵事蹟 ｜ 報到情況 ｜ 整隊 ｜ 檢錄 */
 html[data-device-mode="tablet"] .attendee-item.is-stage-6,
 html[data-device-mode="tablet"] .view-row.is-stage-6 {
-  grid-template-columns: 95px 100px 1.1fr 1.6fr 1.1fr 125px 125px !important;
+  grid-template-columns: 90px 95px 1.1fr 85px 1.5fr 1.1fr 120px 120px !important;
 }
 
 html[data-device-mode="tablet"] .attendee-header,
@@ -304,6 +311,13 @@ html[data-device-mode="tablet"] .v-name {
   font-size: 23px !important;
   font-weight: 900 !important;
   color: #0f172a !important;
+}
+
+html[data-device-mode="tablet"] .cell-tribe,
+html[data-device-mode="tablet"] .v-tribe {
+  font-size: 16px !important;
+  font-weight: 700 !important;
+  color: #0f766e !important;
 }
 
 html[data-device-mode="tablet"] .cell-reward-desc,
@@ -485,6 +499,14 @@ html[data-device-mode="mobile"] .v-name {
   font-weight: 900 !important;
   color: #0f172a !important;
   margin: 3px 0 !important;
+}
+
+html[data-device-mode="mobile"] .cell-tribe,
+html[data-device-mode="mobile"] .v-tribe {
+  grid-column: 1 / 3 !important;
+  font-size: 14px !important;
+  font-weight: 700 !important;
+  color: #0f766e !important;
 }
 
 html[data-device-mode="mobile"] .cell-reward-desc,

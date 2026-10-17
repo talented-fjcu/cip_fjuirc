@@ -202,7 +202,7 @@
       transition: background 0.15s;
     }
     .attendee-item.is-stage-6 {
-      grid-template-columns: 100px 105px 1.2fr 1.8fr 1.1fr 130px 130px;
+      grid-template-columns: 95px 100px 1.1fr 90px 1.7fr 1.1fr 125px 125px;
     }
     .attendee-item:last-child {
       border-bottom: none;
@@ -245,6 +245,11 @@
       font-weight: bold;
       font-size: 18px;
       color: #0f172a;
+    }
+    .cell-tribe {
+      font-weight: bold;
+      font-size: 15px;
+      color: #0f766e;
     }
     .cell-reward-desc {
       font-size: 14px;
@@ -351,6 +356,12 @@
         grid-column: 1 / 3;
         font-size: 19px;
         font-weight: 800;
+      }
+      .cell-tribe {
+        grid-column: 1 / 3;
+        font-size: 14px;
+        font-weight: 700;
+        color: #0f766e;
       }
       .cell-reward-desc {
         grid-column: 1 / 3;
@@ -563,6 +574,7 @@
         <div>組別</div>
         <div>編號</div>
         <div>姓名</div>
+        <div>族別</div>
         <div>獎勵事蹟</div>
         <div>報到情況</div>
         <div style="text-align:center;">整隊</div>
@@ -821,6 +833,10 @@
         const isLate = checkInStr.includes("過號") || !!live.isLate;
         const hasLiveCheckin = !!live.checkedIn;
         const isCheckedIn = hasSheetCheckin || hasLiveCheckin || isLate;
+        const rawTribe = (r[8] !== undefined && r[8] !== null && String(r[8]).trim() !== '')
+          ? String(r[8]).trim()
+          : (live.tribe ? String(live.tribe).trim() : '');
+        const tribe = rawTribe !== '' ? rawTribe : '-';
         const rawRewardDesc = (r[9] !== undefined && r[9] !== null && String(r[9]).trim() !== '')
           ? String(r[9]).trim()
           : (live.rewardDesc ? String(live.rewardDesc).trim() : '');
@@ -834,10 +850,11 @@
         if (isLineup) countLineup++;
         if (isRollcall) countRollcall++;
 
-        // 搜尋比對 (編號、姓名或獎勵事蹟)
+        // 搜尋比對 (編號、姓名、族別或獎勵事蹟)
         if (keyword !== "") {
           const match = String(idNo).toUpperCase().includes(keyword) || 
                         String(name).toUpperCase().includes(keyword) ||
+                        (isStage6Mode && String(tribe).toUpperCase().includes(keyword)) ||
                         (isStage6Mode && String(rewardDesc).toUpperCase().includes(keyword));
           if (!match) return;
         }
@@ -863,6 +880,10 @@
         const rollcallClass = isRollcall ? "btn-toggle-box rollcall-active" : "btn-toggle-box";
         const rollcallText = isRollcall ? "✅ 已檢錄" : "⬜ 檢錄";
 
+        const tribeCell = isStage6Mode
+          ? `<div class="cell-tribe"><span class="mobile-only-id" style="margin-left:0; margin-right:6px; font-size:12px; color:#64748b;">族別：</span>${tribe}</div>`
+          : '';
+
         const rewardDescCell = isStage6Mode
           ? `<div class="cell-reward-desc"><span class="mobile-only-id" style="margin-left:0; margin-right:6px; font-size:12px; color:#64748b;">獎勵事蹟：</span>${rewardDesc}</div>`
           : '';
@@ -881,6 +902,7 @@
             <!-- 第 3 欄：姓名 (含過號提示) -->
             <div class="cell-name">${name}${nameExtra}</div>
 
+            ${tribeCell}
             ${rewardDescCell}
 
             <!-- 報到情況 -->
