@@ -637,8 +637,6 @@
         const groupName = (r[1] !== undefined && r[1] !== null) ? String(r[1]).trim() : '-';
         const name = (r[3] !== undefined && r[3] !== null) ? String(r[3]).trim() : '-';
         const reward = (r[4] !== undefined && r[4] !== null) ? String(r[4]).trim() : '-';
-        const rewardDesc = (r[9] !== undefined && r[9] !== null && String(r[9]).trim() !== '') ? String(r[9]).trim() : '-';
-
         // 報到狀態 (整合 Google Sheets 與 Firebase 即時比對)
         const hasSheetCheckin = !!(r[5] && String(r[5]).trim() !== "");
         const live = liveCheckins[idNo] || liveCheckins[idNo.toUpperCase()] || {};
@@ -646,6 +644,10 @@
         const checkInTime = String(r[5] || liveTime).trim();
         const isLate = checkInTime.includes("過號") || !!live.isLate;
         const isCheckedIn = hasSheetCheckin || !!live.checkedIn || isLate;
+        const rawRewardDesc = (r[9] !== undefined && r[9] !== null && String(r[9]).trim() !== '')
+          ? String(r[9]).trim()
+          : (live.rewardDesc ? String(live.rewardDesc).trim() : '');
+        const rewardDesc = rawRewardDesc !== '' ? rawRewardDesc : '-';
 
         if (isCheckedIn) countIn++;
         else countNot++;

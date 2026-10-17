@@ -463,6 +463,10 @@
                 <div class="res-field-val" style="font-size:16px;">${result.reward || '-'}</div>
               </div>
               <div style="grid-column: span 2;">
+                <div class="res-field-label">獎勵事蹟</div>
+                <div class="res-field-val" style="font-size:15px; color:#334155;">${result.rewardDesc || '-'}</div>
+              </div>
+              <div style="grid-column: span 2;">
                 <div class="res-field-label">完成報到時間</div>
                 <div class="res-field-val" style="font-size:15px; color:#166534;">✅ ${result.checkInTime}</div>
               </div>
@@ -476,7 +480,8 @@
           if (rtdb && result.idNo) {
             rtdb.ref(`/checkins/${result.idNo}`).set({
               checkedIn: true,
-              time: result.checkInTime
+              time: result.checkInTime,
+              rewardDesc: result.rewardDesc || ""
             });
             rtdb.ref(`/records/${result.idNo}`).set({
               lineup: false,

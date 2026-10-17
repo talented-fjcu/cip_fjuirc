@@ -341,6 +341,7 @@ function processWalkIn(idNumber) {
       groupName: "第6階",
       name: foundRecord.name,
       reward: foundRecord.reward,
+      rewardDesc: foundRecord.rewardDesc,
       tribe: foundRecord.tribe,
       rewardAmount: foundRecord.rewardAmount,
       checkInTime: nowStr
