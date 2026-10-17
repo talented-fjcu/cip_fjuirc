@@ -201,6 +201,9 @@
       gap: 14px;
       transition: background 0.15s;
     }
+    .attendee-item.is-stage-6 {
+      grid-template-columns: 100px 105px 1.2fr 1.8fr 1.1fr 130px 130px;
+    }
     .attendee-item:last-child {
       border-bottom: none;
     }
@@ -242,6 +245,12 @@
       font-weight: bold;
       font-size: 18px;
       color: #0f172a;
+    }
+    .cell-reward-desc {
+      font-size: 14px;
+      color: #334155;
+      line-height: 1.5;
+      word-break: break-word;
     }
     .cell-checkin {
       font-size: 13px;
@@ -342,6 +351,15 @@
         grid-column: 1 / 3;
         font-size: 19px;
         font-weight: 800;
+      }
+      .cell-reward-desc {
+        grid-column: 1 / 3;
+        font-size: 14px;
+        color: #334155;
+        background: #f8fafc;
+        padding: 8px 12px;
+        border-radius: 10px;
+        border: 1px solid #e2e8f0;
       }
       .cell-lineup {
         grid-column: 1 / 2;
@@ -503,8 +521,8 @@
 
     <!-- 名單列表卡片 -->
     <div class="table-card">
-      <!-- 標頭：組別 ｜ 編號 ｜ 姓名 ｜ 報到情況 ｜ 整隊 ｜ 檢錄 -->
-      <div class="attendee-item attendee-header">
+      <!-- 標頭：組別 ｜ 編號 ｜ 姓名 ｜ (第6階：獎勵事蹟) ｜ 報到情況 ｜ 整隊 ｜ 檢錄 -->
+      <div class="attendee-item attendee-header" id="attendeeHeader">
         <div>組別</div>
         <div>編號</div>
         <div>姓名</div>
@@ -525,6 +543,7 @@
     // 取得當前網址指定之階數
     const urlParams = new URLSearchParams(window.location.search);
     const currentStage = urlParams.get('stage') || '第1階';
+    const isStage6Mode = (currentStage === '第6階');
 
     const DEFAULT_GAS_URL = "https://script.google.com/macros/s/AKfycbwQnQrRL0rWlM50-KTjrx2iC8xtYTvoL9e-NL56EiDE7dU_SsgnGT-45eoY3apswwE1xA/exec";
     const API_URL = localStorage.getItem("CIP_GAS_URL") || DEFAULT_GAS_URL;
@@ -537,6 +556,19 @@
     let rtdb = null;
 
     document.getElementById('stageTitle').innerText = `📋 【${currentStage}】檢錄與整隊`;
+    const headerEl = document.getElementById('attendeeHeader');
+    if (headerEl && isStage6Mode) {
+      headerEl.classList.add('is-stage-6');
+      headerEl.innerHTML = `
+        <div>組別</div>
+        <div>編號</div>
+        <div>姓名</div>
+        <div>獎勵事蹟</div>
+        <div>報到情況</div>
+        <div style="text-align:center;">整隊</div>
+        <div style="text-align:center;">檢錄</div>
+      `;
+    }
 
     // 初始化 Firebase
     function initFirebase() {
@@ -781,6 +813,7 @@
         const idNo = (r[0] !== undefined && r[0] !== null) ? String(r[0]).trim() : '-';
         const name = (r[3] !== undefined && r[3] !== null) ? String(r[3]).trim() : '-';
         const origGroup = (r[1] !== undefined && r[1] !== null) ? String(r[1]).trim() : '';
+        const rewardDesc = (r[9] !== undefined && r[9] !== null && String(r[9]).trim() !== '') ? String(r[9]).trim() : '-';
         
         // 報到狀態 (優先採用 Firebase 即時推播，次為試算表原始欄位 r[5])
         const hasSheetCheckin = !!(r[5] && String(r[5]).trim() !== "");
@@ -799,9 +832,11 @@
         if (isLineup) countLineup++;
         if (isRollcall) countRollcall++;
 
-        // 搜尋比對 (編號或姓名)
+        // 搜尋比對 (編號、姓名或獎勵事蹟)
         if (keyword !== "") {
-          const match = String(idNo).toUpperCase().includes(keyword) || String(name).toUpperCase().includes(keyword);
+          const match = String(idNo).toUpperCase().includes(keyword) || 
+                        String(name).toUpperCase().includes(keyword) ||
+                        (isStage6Mode && String(rewardDesc).toUpperCase().includes(keyword));
           if (!match) return;
         }
 
@@ -826,8 +861,12 @@
         const rollcallClass = isRollcall ? "btn-toggle-box rollcall-active" : "btn-toggle-box";
         const rollcallText = isRollcall ? "✅ 已檢錄" : "⬜ 檢錄";
 
+        const rewardDescCell = isStage6Mode
+          ? `<div class="cell-reward-desc"><span class="mobile-only-id" style="margin-left:0; margin-right:6px; font-size:12px; color:#64748b;">獎勵事蹟：</span>${rewardDesc}</div>`
+          : '';
+
         html += `
-          <div class="attendee-item">
+          <div class="attendee-item ${isStage6Mode ? 'is-stage-6' : ''}">
             <!-- 第 1 欄：組別 (手機版含小編號標籤) -->
             <div class="cell-group">
               <span class="badge-group">${origGroup || currentStage}</span>
@@ -840,19 +879,21 @@
             <!-- 第 3 欄：姓名 (含過號提示) -->
             <div class="cell-name">${name}${nameExtra}</div>
 
-            <!-- 第 4 欄：報到情況 -->
+            ${rewardDescCell}
+
+            <!-- 報到情況 -->
             <div class="cell-checkin">
               ${checkinBadge}
             </div>
 
-            <!-- 第 5 欄：整隊切換按鈕 -->
+            <!-- 整隊切換按鈕 -->
             <div class="cell-lineup">
               <button type="button" class="${lineupClass}" style="width:100%;" onclick="toggleLineup('${idNo}')">
                 ${lineupText}
               </button>
             </div>
 
-            <!-- 第 6 欄：檢錄切換按鈕 -->
+            <!-- 檢錄切換按鈕 -->
             <div class="cell-rollcall">
               <button type="button" class="${rollcallClass}" style="width:100%;" onclick="toggleRollcall('${idNo}')">
                 ${rollcallText}

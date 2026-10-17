@@ -356,6 +356,12 @@
       <!-- 組別篩選 -->
       <select id="fGroup" onchange="draw()" style="flex: 1; min-width: 130px; padding: 12px; font-size: 15px;">
         <option value="all">所有組別</option>
+        <option value="第1階">第1階</option>
+        <option value="第2階">第2階</option>
+        <option value="第3階">第3階</option>
+        <option value="第4階">第4階</option>
+        <option value="第5階">第5階</option>
+        <option value="第6階">第6階</option>
       </select>
 
       <!-- 獎勵項目篩選 -->
@@ -381,7 +387,7 @@
     <!-- 表格檢視區塊 -->
     <div class="table-container" id="tableContainer">
       <table>
-        <thead>
+        <thead id="tableHead">
           <tr>
             <th style="width: 12%; min-width: 90px; text-align: center;">組別</th>
             <th style="width: 12%; min-width: 90px; text-align: center;">編號</th>
@@ -529,10 +535,10 @@
         d.style.background = "#e8f0fe"; 
         d.style.color = "#1967d2";
         db = [
-          ["001", "第1階", "", "陳大文", "語文競賽特優", "2026-08-20 08:45:12", "是"],
-          ["002", "第2階", "", "李曉明", "原民專門人才卓越獎", "", "否"],
-          ["003", "第1階", "", "張小美", "學術專利深造獎勵", "2026-08-20 09:12:00", "是"],
-          ["004", "第3階", "", "王志明", "專題研究計畫甲等", "", "是"]
+          ["001", "第1階", "", "陳大文", "語文競賽特優", "2026-08-20 08:45:12", "是", "", "", "全族語朗讀第一名", ""],
+          ["002", "第2階", "", "李曉明", "原民專門人才卓越獎", "", "否", "", "", "", ""],
+          ["003", "第1階", "", "張小美", "學術專利深造獎勵", "2026-08-20 09:12:00", "是", "", "", "", ""],
+          ["004", "第3階", "", "王志明", "專題研究計畫甲等", "", "是", "", "", "", ""]
         ];
         initFilters();
         draw();
@@ -540,12 +546,10 @@
     }
 
     function initFilters() {
-      const groupSet = new Set();
       const rewardSet = new Set();
 
-      // 索引 1: 組別, 索引 4: 獎勵項目
+      // 索引 4: 獎勵項目
       db.forEach(r => {
-        if (r[1] && String(r[1]).trim() !== "") groupSet.add(String(r[1]).trim());
         if (r[4] && String(r[4]).trim() !== "") rewardSet.add(String(r[4]).trim());
       });
 
@@ -555,23 +559,10 @@
       const prevGroup = fGroup.value;
       const prevReward = fReward.value;
 
-      // 數字解析排序 (第1階、第2階... 第6階)
-      function getGroupOrder(str) {
-        if (!str) return 999;
-        const match = str.match(/第?(\d+)階?/);
-        if (match) return parseInt(match[1], 10);
-        return 999;
-      }
-
-      const sortedGroups = Array.from(groupSet).sort((a, b) => {
-        const orderA = getGroupOrder(a);
-        const orderB = getGroupOrder(b);
-        if (orderA !== orderB) return orderA - orderB;
-        return a.localeCompare(b, 'zh-Hant');
-      });
+      const fixedGroups = ["第1階", "第2階", "第3階", "第4階", "第5階", "第6階"];
 
       fGroup.innerHTML = '<option value="all">所有組別</option>';
-      sortedGroups.forEach(g => {
+      fixedGroups.forEach(g => {
         fGroup.innerHTML += `<option value="${g}">${g}</option>`;
       });
       if (Array.from(fGroup.options).some(opt => opt.value === prevGroup)) {
@@ -593,7 +584,34 @@
       const sGroup = document.getElementById('fGroup').value;
       const sReward = document.getElementById('fReward').value;
       const tb = document.getElementById('tb');
+      const tableHead = document.getElementById('tableHead');
       const cardsContainer = document.getElementById('cardsContainer');
+      const isStage6Selected = (sGroup === '第6階');
+
+      if (tableHead) {
+        if (isStage6Selected) {
+          tableHead.innerHTML = `
+            <tr>
+              <th style="width: 10%; min-width: 85px; text-align: center;">組別</th>
+              <th style="width: 10%; min-width: 85px; text-align: center;">編號</th>
+              <th style="width: 14%; min-width: 100px;">姓名</th>
+              <th class="col-reward" style="width: 26%; min-width: 180px;">獎勵項目</th>
+              <th class="col-reward" style="width: 26%; min-width: 180px;">獎勵事蹟</th>
+              <th style="width: 14%; min-width: 100px; text-align: center;">報到狀態</th>
+            </tr>
+          `;
+        } else {
+          tableHead.innerHTML = `
+            <tr>
+              <th style="width: 12%; min-width: 90px; text-align: center;">組別</th>
+              <th style="width: 12%; min-width: 90px; text-align: center;">編號</th>
+              <th style="width: 16%; min-width: 110px;">姓名</th>
+              <th class="col-reward" style="width: 44%; min-width: 220px;">獎勵項目</th>
+              <th style="width: 16%; min-width: 110px; text-align: center;">報到狀態</th>
+            </tr>
+          `;
+        }
+      }
 
       tb.innerHTML = "";
       cardsContainer.innerHTML = "";
@@ -606,7 +624,7 @@
       let cardsHtml = "";
 
       db.forEach(r => {
-        // 7 欄位結構對應：
+        // 欄位結構對應：
         // r[0]: 編號
         // r[1]: 組別
         // r[2]: 身分證字號 (資安保護：前端不接收身分證字號)
@@ -614,10 +632,12 @@
         // r[4]: 獎勵項目
         // r[5]: 報到時間
         // r[6]: 交通費核銷否
+        // r[9]: 獎勵事蹟 (J欄)
         const idNo = (r[0] !== undefined && r[0] !== null) ? String(r[0]).trim() : '-';
         const groupName = (r[1] !== undefined && r[1] !== null) ? String(r[1]).trim() : '-';
         const name = (r[3] !== undefined && r[3] !== null) ? String(r[3]).trim() : '-';
         const reward = (r[4] !== undefined && r[4] !== null) ? String(r[4]).trim() : '-';
+        const rewardDesc = (r[9] !== undefined && r[9] !== null && String(r[9]).trim() !== '') ? String(r[9]).trim() : '-';
 
         // 報到狀態 (整合 Google Sheets 與 Firebase 即時比對)
         const hasSheetCheckin = !!(r[5] && String(r[5]).trim() !== "");
@@ -630,20 +650,28 @@
         if (isCheckedIn) countIn++;
         else countNot++;
 
-        // 搜尋過濾 (姓名、編號、獎勵項目、組別)
+        // 搜尋過濾 (姓名、編號、獎勵項目、獎勵事蹟、組別)
         const matchKeyword = (keyword === "") ||
           String(idNo).toUpperCase().includes(keyword) ||
           String(name).toUpperCase().includes(keyword) ||
           String(reward).toUpperCase().includes(keyword) ||
-          String(groupName).toUpperCase().includes(keyword);
+          String(groupName).toUpperCase().includes(keyword) ||
+          (isStage6Selected && String(rewardDesc).toUpperCase().includes(keyword));
 
         // 狀態過濾
         let matchStatus = true;
         if (sStatus === "in") matchStatus = isCheckedIn;
         if (sStatus === "not") matchStatus = !isCheckedIn;
 
-        // 組別過濾
-        const matchGroup = (sGroup === "all") || (groupName === sGroup);
+        // 組別過濾 (第6階同時包含原第6階與過號者)
+        let matchGroup = true;
+        if (sGroup !== "all") {
+          if (sGroup === "第6階") {
+            matchGroup = (groupName === "第6階") || isLate;
+          } else {
+            matchGroup = (groupName === sGroup);
+          }
+        }
 
         // 獎勵項目過濾
         const matchReward = (sReward === "all") || (reward === sReward);
@@ -665,13 +693,27 @@
             cardStatusBadge = `<span class="badge-status-no" style="font-size:12px; padding:3px 10px;">未報到</span>`;
           }
 
-          // 1. 表格列 HTML (包含：組別、編號、姓名、獎勵項目、報到狀態)
+          const tableRewardDescCell = isStage6Selected
+            ? `<td class="col-reward" style="line-height:1.5;">${rewardDesc}</td>`
+            : '';
+
+          const cardRewardDescBlock = isStage6Selected
+            ? `
+              <div class="card-reward">
+                <div class="card-reward-label">獎勵事蹟</div>
+                <div style="font-weight:600; color:#222;">${rewardDesc}</div>
+              </div>
+            `
+            : '';
+
+          // 1. 表格列 HTML (包含：組別、編號、姓名、獎勵項目、[第6階:獎勵事蹟]、報到狀態)
           tableHtml += `
             <tr style="background:${isCheckedIn ? 'rgba(230, 244, 234, 0.3)' : 'none'};">
               <td style="text-align:center;"><span style="font-weight:bold; color:#1d4ed8; background:#eff6ff; padding:4px 10px; border-radius:10px; font-size:14px; border:1px solid #bfdbfe;">${groupName}</span></td>
               <td style="text-align:center; font-weight:bold; color:#1a73e8; font-size:16px;">${idNo}</td>
               <td><b style="font-size:17px; color:#111827;">${name}</b></td>
               <td class="col-reward" style="line-height:1.5;">${reward}</td>
+              ${tableRewardDescCell}
               <td style="text-align:center;">${tableStatusBadge}</td>
             </tr>
           `;
@@ -693,13 +735,15 @@
                 <div class="card-reward-label">獎勵項目</div>
                 <div style="font-weight:600; color:#222;">${reward}</div>
               </div>
+              ${cardRewardDescBlock}
             </div>
           `;
         }
       });
 
       if (countFiltered === 0) {
-        tb.innerHTML = `<tr><td colspan="5" style="text-align:center; padding: 30px; color:#888;">查無符合條件的學員資料</td></tr>`;
+        const colSpan = isStage6Selected ? 6 : 5;
+        tb.innerHTML = `<tr><td colspan="${colSpan}" style="text-align:center; padding: 30px; color:#888;">查無符合條件的學員資料</td></tr>`;
         cardsContainer.innerHTML = `<div style="grid-column: 1 / -1; text-align:center; padding: 40px 20px; color:#888; font-size:15px; background:rgba(255,255,255,0.7); border-radius:16px;">查無符合條件的學員資料</div>`;
       } else {
         tb.innerHTML = tableHtml;

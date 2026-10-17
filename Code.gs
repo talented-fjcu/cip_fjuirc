@@ -189,13 +189,17 @@ function getAdminData() {
       }
 
       dataList.push([
-        r[0] ? r[0].toString() : "",               // 0: 編號
-        r[1] ? r[1].toString() : "",               // 1: 組別
-        "",                                        // 2: 身分證字號 (資安與個資保護：不對外傳輸敏感識別碼)
-        r[3] ? r[3].toString() : "",               // 3: 姓名
-        r[4] ? r[4].toString() : "",               // 4: 獎勵項目
-        checkInTimeStr,                            // 5: 報到時間
-        r[6] ? r[6].toString() : ""                // 6: 交通費核銷否
+        r[0] ? r[0].toString() : "",               // 0: 編號 (A)
+        r[1] ? r[1].toString() : "",               // 1: 組別 (B)
+        "",                                        // 2: 身分證字號 (C - 資安與個資保護：不對外傳輸敏感識別碼)
+        r[3] ? r[3].toString() : "",               // 3: 姓名 (D)
+        r[4] ? r[4].toString() : "",               // 4: 獎勵項目 (E)
+        checkInTimeStr,                            // 5: 報到時間 (F)
+        r[6] ? r[6].toString() : "",               // 6: 交通費核銷否 / 整隊確認 (G)
+        r[7] ? r[7].toString() : "",               // 7: 檢錄組確認 (H)
+        r[8] ? r[8].toString() : "",               // 8: 族別 (I)
+        r[9] ? r[9].toString() : "",               // 9: 獎勵事蹟 (J)
+        r[10] ? r[10].toString() : ""              // 10: 獎勵金額 (K)
       ]);
     }
 

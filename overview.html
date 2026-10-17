@@ -191,6 +191,9 @@
       border-bottom: 1px solid #f1f5f9;
       gap: 14px;
     }
+    .view-row.is-stage-6 {
+      grid-template-columns: 100px 105px 1.2fr 1.8fr 1.1fr 130px 130px;
+    }
     .view-row:last-child {
       border-bottom: none;
     }
@@ -229,6 +232,12 @@
       font-weight: bold;
       font-size: 18px;
       color: #0f172a;
+    }
+    .v-reward-desc {
+      font-size: 14px;
+      color: #334155;
+      line-height: 1.5;
+      word-break: break-word;
     }
 
     /* 狀態標籤 (純檢視，不可點擊) */
@@ -324,6 +333,15 @@
         font-size: 19px;
         font-weight: 800;
       }
+      .v-reward-desc {
+        grid-column: 1 / 3;
+        font-size: 14px;
+        color: #334155;
+        background: #f8fafc;
+        padding: 8px 12px;
+        border-radius: 10px;
+        border: 1px solid #e2e8f0;
+      }
       .v-lineup {
         grid-column: 1 / 2;
       }
@@ -416,7 +434,7 @@
 
     <!-- 名單列表卡片 (純檢視，不可修改) -->
     <div class="content-card">
-      <div class="view-row view-header">
+      <div class="view-row view-header" id="viewHeader">
         <div>組別</div>
         <div>編號</div>
         <div>姓名</div>
@@ -438,10 +456,10 @@
           <span id="logCountBadge" style="font-size:12px; background:#e2e8f0; color:#475569; padding:2px 8px; border-radius:10px;">0 筆</span>
         </div>
         <button type="button" id="btnToggleLog" onclick="toggleLogPanel()" style="background:#f1f5f9; border:1px solid #cbd5e1; padding:6px 12px; border-radius:10px; font-size:13px; font-weight:bold; cursor:pointer; color:#475569;">
-          摺疊日誌
+          展開日誌
         </button>
       </div>
-      <div id="logListContainer" style="max-height: 380px; overflow-y: auto; padding: 6px 10px;">
+      <div id="logListContainer" style="display: none; max-height: 380px; overflow-y: auto; padding: 6px 10px;">
         <div style="text-align:center; padding: 25px; color:#94a3b8; font-size:14px;">尚無即時日誌紀錄</div>
       </div>
     </div>
@@ -487,7 +505,7 @@
     const API_URL = localStorage.getItem("CIP_GAS_URL") || DEFAULT_GAS_URL;
 
     let db = [];
-    let activeStage = 'all'; // 預設全部，可點選 '第1階' ~ '第N階'
+    let activeStage = 'all'; // 預設全部，可點選 '第1階' ~ '第6階'
     let realTimeRecords = {};
     let liveCheckins = {};
     let lockedStages = {};
@@ -597,17 +615,11 @@
       container.innerHTML = html;
     }
 
-    // 動態更新階段按鈕標籤與鎖定標示
+    // 固定更新階段按鈕標籤（固定為第1階～第6階）與鎖定標示
     function updateStageTabs() {
       const container = document.getElementById('stageTabsRow');
       if (!container) return;
-      const stageSet = new Set(DEFAULT_STAGES);
-      db.forEach(r => {
-        if (r[1] && String(r[1]).trim() !== "") {
-          stageSet.add(String(r[1]).trim());
-        }
-      });
-      const stages = Array.from(stageSet).sort(compareStages);
+      const stages = DEFAULT_STAGES;
 
       let html = `<button type="button" class="stage-tab-btn ${activeStage === 'all' ? 'active' : ''}" onclick="switchStage('all')">全部階數</button>`;
       stages.forEach(stage => {
@@ -659,7 +671,34 @@
     // 渲染純檢視表格
     function renderTable() {
       const tbody = document.getElementById('tableBody');
+      const viewHeader = document.getElementById('viewHeader');
       const keyword = document.getElementById('searchInput').value.trim().toUpperCase();
+      const isStage6Mode = (activeStage === '第6階');
+
+      if (viewHeader) {
+        if (isStage6Mode) {
+          viewHeader.classList.add('is-stage-6');
+          viewHeader.innerHTML = `
+            <div>組別</div>
+            <div>編號</div>
+            <div>姓名</div>
+            <div>獎勵事蹟</div>
+            <div>報到情況</div>
+            <div style="text-align:center;">整隊</div>
+            <div style="text-align:center;">檢錄</div>
+          `;
+        } else {
+          viewHeader.classList.remove('is-stage-6');
+          viewHeader.innerHTML = `
+            <div>組別</div>
+            <div>編號</div>
+            <div>姓名</div>
+            <div>報到情況</div>
+            <div style="text-align:center;">整隊</div>
+            <div style="text-align:center;">檢錄</div>
+          `;
+        }
+      }
 
       if (!db.length) {
         tbody.innerHTML = `<div style="text-align:center; padding:40px; color:#94a3b8;">載入名冊資料中...</div>`;
@@ -677,6 +716,7 @@
         const idNo = (r[0] !== undefined && r[0] !== null) ? String(r[0]).trim() : '-';
         const groupName = (r[1] !== undefined && r[1] !== null) ? String(r[1]).trim() : '-';
         const name = (r[3] !== undefined && r[3] !== null) ? String(r[3]).trim() : '-';
+        const rewardDesc = (r[9] !== undefined && r[9] !== null && String(r[9]).trim() !== '') ? String(r[9]).trim() : '-';
 
         // 報到狀態 (支援 Google Sheets 與 Firebase 即時雙軌比對)
         const hasSheetCheckin = !!(r[5] && String(r[5]).trim() !== "");
@@ -712,7 +752,8 @@
         if (keyword !== "") {
           const match = String(idNo).toUpperCase().includes(keyword) || 
                         String(name).toUpperCase().includes(keyword) ||
-                        String(groupName).toUpperCase().includes(keyword);
+                        String(groupName).toUpperCase().includes(keyword) ||
+                        (isStage6Mode && String(rewardDesc).toUpperCase().includes(keyword));
           if (!match) return;
         }
 
@@ -739,8 +780,12 @@
           ? `<span class="v-badge-done">✅ 已檢錄</span>` 
           : `<span class="v-badge-empty">⬜ 未檢錄</span>`;
 
+        const rewardDescCell = isStage6Mode
+          ? `<div class="v-reward-desc"><span class="mobile-only-id" style="margin-left:0; margin-right:6px; font-size:12px; color:#64748b;">獎勵事蹟：</span>${rewardDesc}</div>`
+          : '';
+
         html += `
-          <div class="view-row">
+          <div class="view-row ${isStage6Mode ? 'is-stage-6' : ''}">
             <!-- 第 1 欄：組別 (手機版含小編號標籤) -->
             <div class="v-group">
               <span class="badge-group">${groupName}</span>
@@ -753,13 +798,15 @@
             <!-- 第 3 欄：姓名 (含過號標籤) -->
             <div class="v-name">${name}${lateTag}</div>
 
-            <!-- 第 4 欄：報到情況 -->
+            ${rewardDescCell}
+
+            <!-- 報到情況 -->
             <div class="v-checkin">${checkinHtml}</div>
 
-            <!-- 第 5 欄：整隊狀態 (純檢視) -->
+            <!-- 整隊狀態 (純檢視) -->
             <div class="v-lineup">${lineupHtml}</div>
 
-            <!-- 第 6 欄：檢錄狀態 (純檢視) -->
+            <!-- 檢錄狀態 (純檢視) -->
             <div class="v-rollcall">${rollcallHtml}</div>
           </div>
         `;
